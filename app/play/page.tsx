@@ -26,11 +26,10 @@ import { SKILLS, emptySkills, grantXp, type SkillId, type SkillMap } from "@/lib
 import { CAREERS, careerPay } from "@/lib/ibadanlife/careers";
 import { DISTANCES } from "@/lib/ibadanlife/transport";
 import MapGraph from "@/components/MapGraph";
-import WorldStage from "@/components/WorldStage";
 import DistrictScene from "@/components/DistrictScene";
 import { sceneFor } from "@/lib/districts";
 import RoomCard from "@/components/RoomCard";
-import type { Teleport } from "@/components/IsoWorld";
+import type { SceneTeleport as Teleport } from "@/components/DistrictScene";
 import HomeTab from "@/components/HomeTab";
 import CompoundCard from "@/components/CompoundCard";
 import StreetCard from "@/components/StreetCard";

@@ -5,7 +5,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import type { DriveRoute } from "@/lib/world";
 import { samplePolyline, polyLength, hash01 } from "@/lib/iso";
-import { gx, gz, roadRibbon } from "./World3D";
+import { gx, gz, roadRibbon } from "@/lib/three-geo";
 import { SIDEWALK, SHOP_FACES, signalIsRed } from "@/lib/streets";
 import { engineSpeed, engineStart, engineStop, horn } from "@/lib/sound";
 import { makeSignTexture } from "@/lib/sign";
