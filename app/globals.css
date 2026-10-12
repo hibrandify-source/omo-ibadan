@@ -1,0 +1,22 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cream: #FAF6F0;
+  --charcoal: #1C1917;
+  --roof: #7A4A2B;
+  --mapo: #E8A020;
+  --agodi: #1F7A4D;
+}
+
+body {
+  background: var(--cream);
+  color: var(--charcoal);
+  font-family: "Plus Jakarta Sans", "DM Sans", "Noto Sans", system-ui, sans-serif;
+}
+
+/* Yoruba diacritics test string: Ẹ káàbọ̀ sí Ìbàdàn */
+.font-display {
+  font-family: "Sora", "Fraunces", "Plus Jakarta Sans", "Noto Sans", sans-serif;
+}
