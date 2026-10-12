@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { ShopKind } from "./StoreInterior3D";
+import { PRICES, naira } from "@/lib/game";
 
 const StoreInterior3D = dynamic(() => import("./StoreInterior3D"), {
   ssr: false,
@@ -13,9 +14,9 @@ const StoreInterior3D = dynamic(() => import("./StoreInterior3D"), {
 });
 
 const PROVISIONS = [
-  { id: "water", name: "Pure water + Gala", cost: 50, gain: 8, blurb: "Hold body till real food." },
-  { id: "combo", name: "Gala + La Casera", cost: 200, gain: 18, blurb: "Traffic classic." },
-  { id: "pack", name: "Family provisions pack", cost: 500, gain: 40, blurb: "Household secured." },
+  { id: "water", name: "Pure water + Gala", cost: PRICES.food.pureWaterGala, gain: 8, blurb: "Hold body till real food." },
+  { id: "combo", name: "Gala + La Casera", cost: PRICES.food.galaLaCasera, gain: 18, blurb: "Traffic classic." },
+  { id: "pack", name: "Family provisions pack", cost: PRICES.food.provisionsPack, gain: 40, blurb: "Household secured." },
 ];
 
 export default function ShopEntryModal({
@@ -47,19 +48,19 @@ export default function ShopEntryModal({
           <div className="mt-3 grid gap-2">
             {(shop === "food"
               ? [
-                  { id: "amala", name: "Amala + gbegiri", cost: 150, gain: 30, blurb: "Mama's pot." },
-                  { id: "special", name: "⭐ Mama Special", cost: 250, gain: 45, blurb: "Ofada + meat. Bodija remembers." },
+                  { id: "amala", name: "Amala + gbegiri", cost: PRICES.food.amalaPlate, gain: 30, blurb: "Mama's pot." },
+                  { id: "special", name: "⭐ Mama Special", cost: PRICES.food.mamaSpecial, gain: 45, blurb: "Ofada + meat. Bodija remembers." },
                 ]
               : PROVISIONS
             ).map((g) => (
               <button
                 key={g.id}
-                onClick={() => (ola >= g.cost ? onBuyEnergy(g.cost, g.gain, `🛒 ${g.name} (−₦${g.cost}). Energy +${g.gain}.`) : undefined)}
+                onClick={() => (ola >= g.cost ? onBuyEnergy(g.cost, g.gain, `🛒 ${g.name} (−${naira(g.cost)}). Energy +${g.gain}.`) : undefined)}
                 disabled={ola < g.cost}
                 className="flex items-center justify-between rounded-2xl bg-white px-4 py-2.5 text-left text-sm font-bold ring-1 ring-roof/10 disabled:opacity-40"
               >
                 <span>{g.name}<span className="block text-xs font-semibold text-charcoal/55">{g.blurb}</span></span>
-                <span className="shrink-0 rounded-full bg-charcoal px-3 py-1 text-xs text-cream">₦{g.cost}</span>
+                <span className="shrink-0 rounded-full bg-charcoal px-3 py-1 text-xs text-cream">{naira(g.cost)}</span>
               </button>
             ))}
           </div>
@@ -72,19 +73,19 @@ export default function ShopEntryModal({
         {shop === "barber" && (
           <button
             onClick={onHaircut}
-            disabled={ola < 200}
+            disabled={ola < PRICES.barberLowcut}
             className="mt-3 w-full rounded-2xl bg-charcoal px-4 py-3 text-sm font-bold text-cream disabled:opacity-40"
           >
-            💈 Sharp lowcut — ₦200
+            💈 Sharp lowcut — {naira(PRICES.barberLowcut)}
           </button>
         )}
         {shop === "viewing" && (
           <button
             onClick={onWatch}
-            disabled={ola < 100}
+            disabled={ola < PRICES.viewingCentre}
             className="mt-3 w-full rounded-2xl bg-charcoal px-4 py-3 text-sm font-bold text-cream disabled:opacity-40"
           >
-            📺 Watch match — ₦100 (gist + Iwa once daily)
+            📺 Watch match — {naira(PRICES.viewingCentre)} (gist + Iwa once daily)
           </button>
         )}
         <div className="mt-2 grid grid-cols-2 gap-2">

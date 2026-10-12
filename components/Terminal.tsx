@@ -3,10 +3,13 @@
 // Iwo motor-park terminal — our answer to their airport: ticketing hall,
 // route boards, white interstate buses. Pay fare, ride out, return with
 // goods to offload. Costs energy (travel tires you).
+import { PRICES } from "@/lib/game";
+
+const IP = PRICES.interstate;
 const ROUTES = [
-  { id: "ife", city: "Ife", fare: 800, lo: 1000, hi: 1350, time: "45 min", blurb: "Bronze heads, short trip. Sharp returns." },
-  { id: "lagos", city: "Lagos", fare: 1500, lo: 1800, hi: 2450, time: "2 hrs", blurb: "Island goods, mainland prices. The classic run." },
-  { id: "abuja", city: "Abuja", fare: 3000, lo: 3600, hi: 4600, time: "8 hrs", blurb: "Capital contracts. Big fare, bigger margin." },
+  { id: "ife", city: "Ife", ...IP.ife, time: "45 min", blurb: "Bronze heads, short trip. Sharp returns." },
+  { id: "lagos", city: "Lagos", ...IP.lagos, time: "2 hrs", blurb: "Island goods, mainland prices. The classic run." },
+  { id: "abuja", city: "Abuja", ...IP.abuja, time: "8 hrs", blurb: "Capital contracts. Big fare, bigger margin." },
 ];
 
 export default function Terminal({

@@ -1,7 +1,7 @@
 "use client";
 
 const SEED = [
-  { hood: "Bodija", text: "Ade just sprayed ₦500 at Bodija owambe! 💸", time: "2m" },
+  { hood: "Bodija", text: "Ade just sprayed ₦50,000 at Bodija owambe! 💸", time: "2m" },
   { hood: "Agbowo", text: "UI vs Poly street ball Saturday — Agbowo dey ready ⚽", time: "9m" },
   { hood: "Iwo Road", text: "Micra full load 6/6 in 40s. Who fit beat am? 🚐", time: "14m" },
   { hood: "Beere", text: "Sunset for Mapo today too fine. Brown roofs 🌇", time: "31m" },

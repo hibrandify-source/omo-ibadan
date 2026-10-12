@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ensureAudio, fujiStart, fujiStop, coin, drumHit } from "@/lib/sound";
+import { PRICES } from "@/lib/game";
 
 // Owambe hall — OUR differentiator they don't have: live Fuji band,
 // dance floor, spraying battles. Spraying is a money sink (fun keeps
@@ -135,7 +136,7 @@ export default function OwambeHall({
       <div className="rounded-3xl bg-white p-4 ring-1 ring-roof/10">
         <div className="text-[10px] font-extrabold tracking-[0.25em] text-roof">SPRAYING BATTLE · MONEY SINK, BRAGGING RIGHTS</div>
         <div className="mt-2 grid grid-cols-3 gap-2">
-          {[100, 500, 1000].map((amt) => (
+          {PRICES.spray.map((amt) => (
             <button
               key={amt}
               onClick={() => spray(amt)}

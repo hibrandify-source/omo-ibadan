@@ -1,4 +1,4 @@
-// IbadanLife — 7 radio stations (LagosLife parity, real Ibadan stations).
+// Omo Ibadan — Ibadan radio stations (flavour + small buffs).
 
 export interface Station { id: string; name: string; freq: string; show: string; bonus: string; }
 export const STATIONS: Station[] = [

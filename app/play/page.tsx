@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ARCHETYPES,
   ECONOMY,
   EXAM_POOL,
   HOODS,
@@ -19,12 +18,30 @@ import {
   type HoodId,
   type LifeEvent,
   type WardrobeItem,
+  NEEDS,
+  TRAITS,
+  SKILLS,
+  emptySkills,
+  grantXp,
+  type SkillId,
+  type SkillMap,
+  CAREERS,
+  careerPay,
+  entryLevel,
+  distanceKm,
+  PRICES,
+  naira,
+  BACKGROUNDS,
+  drawBackground,
+  isBackgroundId,
+  backgroundFromLegacyArchetype,
+  allowanceDue,
+  upkeepFor,
+  upcomingObligations,
+  overdueObligations,
+  eventsFor,
+  type BackgroundId,
 } from "@/lib/game";
-import { NEEDS } from "@/lib/ibadanlife/needs";
-import { TRAITS } from "@/lib/ibadanlife/traits";
-import { SKILLS, emptySkills, grantXp, type SkillId, type SkillMap } from "@/lib/ibadanlife/skills";
-import { CAREERS, careerPay } from "@/lib/ibadanlife/careers";
-import { DISTANCES } from "@/lib/ibadanlife/transport";
 import MapGraph from "@/components/MapGraph";
 import DistrictScene from "@/components/DistrictScene";
 import { sceneFor } from "@/lib/districts";
@@ -38,8 +55,6 @@ import DoorModal from "@/components/DoorModal";
 import ShopEntryModal from "@/components/ShopEntryModal";
 import type { ShopKind } from "@/components/StoreInterior3D";
 import {
-  ARCH_HOME_ZONE,
-  ARCH_COLOR,
   SKINS,
   CLOTHS,
   FURNITURE,
@@ -118,12 +133,25 @@ const startHoods = (): Record<HoodId, number> => ({
 export default function Home() {
   const [started, setStarted] = useState(false);
   const [username, setUsername] = useState("");
-  const [archId, setArchId] = useState(ARCHETYPES[0].id);
+  // birth lottery: null until drawn on the start screen, then fixed for life
+  const [bgId, setBgId] = useState<BackgroundId | null>(null);
+  const bg = BACKGROUNDS[bgId ?? "omo-iya-lobe"];
+  // family meter: Mama's trust (Omo Iya Lobe) / Daddy's approval (Alowonle)
+  const [bond, setBond] = useState(60);
+  const [paidObligations, setPaidObligations] = useState<string[]>([]);
+  const [lastFamilyDay, setLastFamilyDay] = useState(0);
+  const [forcedBirth, setForcedBirth] = useState<BackgroundId | null>(null);
+  const drawLife = () => {
+    if (bgId) return; // one draw per life, no reroll
+    setBgId(forcedBirth ?? drawBackground());
+    ensureAudio();
+    coin();
+  };
   const [gender, setGender] = useState<Gender>("okunrin");
   // character look: skin/top swatches + headgear (null gear follows gender)
   const [look, setLook] = useState<{ skin: number; top: number; topEx: string | null; gear: null | "fila" | "gele" | "none" | "braids" | "afro" }>({ skin: 1, top: 1, topEx: null, gear: null });
   const gear: "fila" | "gele" | "none" | "braids" | "afro" = look.gear ?? (gender === "okunrin" ? "fila" : "gele");
-  const topColor = look.topEx ?? CLOTHS[look.top] ?? ARCH_COLOR[archId] ?? "#1F7A4D";
+  const topColor = look.topEx ?? CLOTHS[look.top] ?? bg.outfit;
   // wardrobe / owambe / daily-hunt state
   const [wardrobe, setWardrobe] = useState<string[]>([]);
   const [equipped, setEquipped] = useState<string | null>(null);
@@ -148,7 +176,7 @@ export default function Home() {
   const [careerId, setCareerId] = useState<string | null>(null);
   const [careerLevels, setCareerLevels] = useState<Record<string, number>>({});
   const [lastShiftDay, setLastShiftDay] = useState(0);
-  const [travelMode, setTravelMode] = useState<"micra" | "trek">("micra");
+  const [travelMode, setTravelMode] = useState<"micra" | "trek" | "car">("micra");
   const [feed, setFeed] = useState<string[]>([]);
   const [qi, setQi] = useState(0);
   const [invites, setInvites] = useState(0);
@@ -281,7 +309,6 @@ export default function Home() {
   const [ileView, setIleView] = useState<"room" | "compound" | "street">("room");
   const [lastGreetDay, setLastGreetDay] = useState(0);
 
-  const arch = useMemo(() => ARCHETYPES.find((a) => a.id === archId)!, [archId]);
   const moodScore = Math.round((energy + needs.hunger + needs.fun + needs.social + needs.hygiene + needs.toilet) / 6);
   const mood =
     moodScore >= 75 ? "😄 Very Happy" :
@@ -289,7 +316,7 @@ export default function Home() {
     moodScore >= 35 ? "😐 Managing" :
     moodScore >= 15 ? "😩 Drained" : "🤢 Miserable";
   const title = useMemo(() => {
-    const score = ola / 2000 + iwa / 40;
+    const score = ola / 100000 + iwa / 40;
     return TITLE_LADDER[Math.min(TITLE_LADDER.length - 1, Math.floor(score))];
   }, [ola, iwa]);
   const nodeName = MAP_NODES.find((n) => n.id === node)?.name ?? node;
@@ -301,7 +328,14 @@ export default function Home() {
         const s = JSON.parse(saved);
         setStarted(s.started ?? false);
         setUsername(s.username ?? "");
-        if (s.archId) setArchId(s.archId);
+        // v2 saves carry a background; older saves get one from their archetype
+        // and have their wallet scaled to the recalibrated prices (×10).
+        const legacy = s.v !== 2;
+        if (legacy) setBgId(s.started ? backgroundFromLegacyArchetype(s.archId) : null);
+        else setBgId(isBackgroundId(s.bgId) ? s.bgId : null);
+        if (typeof s.bond === "number") setBond(s.bond);
+        if (Array.isArray(s.paidObligations)) setPaidObligations(s.paidObligations);
+        if (typeof s.lastFamilyDay === "number") setLastFamilyDay(s.lastFamilyDay);
         if (s.gender) setGender(s.gender);
         if (s.look) setLook({ skin: s.look.skin ?? 1, top: s.look.top ?? 1, topEx: s.look.topEx ?? null, gear: s.look.gear ?? null });
         if (Array.isArray(s.wardrobe)) setWardrobe(s.wardrobe);
@@ -319,7 +353,7 @@ export default function Home() {
         }
         if (typeof s.viewDay === "number") setViewDay(s.viewDay);
         setMyCode(s.myCode ?? "");
-        setOla(s.ola ?? 0);
+        setOla(legacy && s.started ? (s.ola ?? 0) * 10 : s.ola ?? 0);
         setIwa(s.iwa ?? 50);
         setEnergy(s.energy ?? 80);
         if (s.needs && typeof s.needs === "object") {
@@ -371,12 +405,15 @@ export default function Home() {
         if (typeof s.careerId === "string" || s.careerId === null) setCareerId((s.careerId as string | null) ?? null);
         if (s.careerLevels && typeof s.careerLevels === "object") setCareerLevels(s.careerLevels as Record<string, number>);
         if (typeof s.lastShiftDay === "number") setLastShiftDay(s.lastShiftDay);
-        if (s.travelMode === "micra" || s.travelMode === "trek") setTravelMode(s.travelMode);
+        if (s.travelMode === "micra" || s.travelMode === "trek" || s.travelMode === "car") setTravelMode(s.travelMode);
       } catch {}
     }
     const params = new URLSearchParams(window.location.search);
     const r = params.get("ref");
     if (r) setRefInput(r);
+    // Dev/test only: ?birth=alowonle forces the lottery result.
+    const forced = params.get("birth");
+    if (process.env.NODE_ENV !== "production" && isBackgroundId(forced)) setForcedBirth(forced);
   }, []);
 
   useEffect(() => {
@@ -390,9 +427,9 @@ export default function Home() {
     }
     localStorage.setItem(
       "omo-ibadan-v1",
-      JSON.stringify({ started, username, myCode, ola, iwa, energy, day, micraRuns, trades, examPass, familyCount, rests, fullLoads, visits, done, hoods, myHood, home, avatarZone, archId, gender, look, wardrobe, equipped, sprays, claimedDaily, shopGreets, viewDay, saver, lastGreetDay, needs, trait, lastFreshDay, lastToiletDay, npc, journal, walkWeek, walkDay, skills, careerId, careerLevels, lastShiftDay, travelMode })
+      JSON.stringify({ v: 2, started, username, myCode, ola, iwa, energy, day, micraRuns, trades, examPass, familyCount, rests, fullLoads, visits, done, hoods, myHood, home, avatarZone, bgId, bond, paidObligations, lastFamilyDay, gender, look, wardrobe, equipped, sprays, claimedDaily, shopGreets, viewDay, saver, lastGreetDay, needs, trait, lastFreshDay, lastToiletDay, npc, journal, walkWeek, walkDay, skills, careerId, careerLevels, lastShiftDay, travelMode })
     );
-  }, [started, username, myCode, ola, iwa, energy, day, micraRuns, trades, examPass, familyCount, rests, fullLoads, visits, done, hoods, myHood, home, avatarZone, archId, gender, look, wardrobe, equipped, sprays, claimedDaily, shopGreets, viewDay, saver, lastGreetDay, needs, trait, lastFreshDay, lastToiletDay, npc, journal, walkWeek, walkDay, skills, careerId, careerLevels, lastShiftDay, travelMode]);
+  }, [started, username, myCode, ola, iwa, energy, day, micraRuns, trades, examPass, familyCount, rests, fullLoads, visits, done, hoods, myHood, home, avatarZone, bgId, bond, paidObligations, lastFamilyDay, gender, look, wardrobe, equipped, sprays, claimedDaily, shopGreets, viewDay, saver, lastGreetDay, needs, trait, lastFreshDay, lastToiletDay, npc, journal, walkWeek, walkDay, skills, careerId, careerLevels, lastShiftDay, travelMode]);
 
   const push = (m: string) => setFeed((f) => [m, ...f].slice(0, 8));
 
@@ -402,7 +439,7 @@ export default function Home() {
     (window as unknown as { __omo: unknown }).__omo = {
       teleport: (x: number, y: number) => setTeleport((t) => ({ x, y, key: (t?.key ?? 0) + 1 })),
       goto: (zoneId: string) => { setNode(zoneId); setAvatarZone(zoneId); recordVisit(zoneId); },
-      state: () => ({ started, tab, ola, iwa, energy, day, avatarZone, nearDoor: nearDoor?.id ?? null, doorOpen: doorOpen?.id ?? null, feed: feed.slice(0, 3), journal: journal.length, npc: Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets])) }),
+      state: () => ({ started, tab, bg: bgId, bond, ola, iwa, energy, day, avatarZone, nearDoor: nearDoor?.id ?? null, doorOpen: doorOpen?.id ?? null, feed: feed.slice(0, 3), journal: journal.length, npc: Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets])) }),
     };
   });
 
@@ -453,13 +490,18 @@ export default function Home() {
       const num = (v: unknown, d: number) => (typeof v === "number" ? v : d);
       const str = (v: unknown, d: string) => (typeof v === "string" ? v : d);
       setUsername(str(data.username, username));
-      setArchId(str(data.arch_id, archId));
+      // arch_id column now stores the background id (old rows: archetype id)
+      const cloudLegacy = p.v !== 2;
+      setBgId(isBackgroundId(data.arch_id) ? data.arch_id : backgroundFromLegacyArchetype(str(data.arch_id, "")));
+      if (typeof p.bond === "number") setBond(p.bond);
+      if (Array.isArray(p.paidObligations)) setPaidObligations(p.paidObligations as string[]);
+      if (typeof p.lastFamilyDay === "number") setLastFamilyDay(p.lastFamilyDay);
       setGender((data.gender === "obinrin" ? "obinrin" : "okunrin") as Gender);
       if (data.look && typeof data.look === "object") {
         const l = data.look as { skin?: number; top?: number; topEx?: string | null; gear?: null | "fila" | "gele" | "none" | "braids" | "afro" };
         setLook({ skin: l.skin ?? 1, top: l.top ?? 1, topEx: l.topEx ?? null, gear: l.gear ?? null });
       }
-      setOla(num(w.ola, ola));
+      setOla(cloudLegacy ? num(w.ola, 0) * 10 : num(w.ola, ola));
       setIwa(num(w.iwa, iwa));
       setEnergy(num(w.energy, energy));
       if (typeof p.day === "number") setDay(p.day);
@@ -518,7 +560,7 @@ export default function Home() {
     const sb = getSupabase();
     if (!sb) return;
     const snap = JSON.stringify({
-      username, archId, gender, look, ola, iwa, energy, day, micraRuns, trades,
+      username, bgId, bond, paidObligations, gender, look, ola, iwa, energy, day, micraRuns, trades,
       examPass, familyCount, rests, fullLoads, visits, done, sprays, claimedDaily,
       shopGreets, viewDay, home, avatarZone, hoods, myHood, wardrobe, equipped, myCode,
     });
@@ -528,11 +570,12 @@ export default function Home() {
       {
         id: authUser.id,
         username: username || "omo",
-        arch_id: archId,
+        arch_id: bgId,
         gender,
         look,
         wallet: { ola, iwa, energy },
         progress: {
+          v: 2, bond, paidObligations, lastFamilyDay,
           day, micraRuns, trades, examPass, familyCount, rests, fullLoads, visits,
           done, sprays, claimedDaily, shopGreets, viewDay, home, avatarZone, myCode, walkWeek, walkDay,
           needs, trait, lastFreshDay, lastToiletDay, npc, journal, skills, careerId, careerLevels, lastShiftDay,
@@ -581,24 +624,30 @@ export default function Home() {
     setVisits((v) => (v.includes(id) ? v : [...v, id]));
 
   const start = () => {
-    if (!username.trim()) return;
+    if (!username.trim() || !bgId) return;
     const code = makeReferralCode(username);
     setMyCode(code);
-    let bonus = ECONOMY.WELCOME_BONUS + arch.ola;
+    let pocket = bg.pocket;
     let extra = "";
     if (refInput.trim()) {
-      bonus += ECONOMY.REFERRAL_JOINER_EXTRA;
-      extra = ` + referral +₦${ECONOMY.REFERRAL_JOINER_EXTRA} (code ${refInput.toUpperCase()})`;
-      push(`🎁 Friend code ${refInput.toUpperCase()} accepted. Sharer gets ₦${ECONOMY.REFERRAL_GIVER} (capped weekly).`);
+      pocket += ECONOMY.REFERRAL_JOINER_EXTRA;
+      extra = ` Friend code bonus +${naira(ECONOMY.REFERRAL_JOINER_EXTRA)}.`;
+      push(`🎁 Friend code ${refInput.toUpperCase()} accepted. Sharer gets ${naira(ECONOMY.REFERRAL_GIVER)} (capped weekly).`);
     }
-    setOla(bonus);
-    setIwa(arch.iwa);
-    setEnergy(arch.energy);
+    setOla(pocket);
+    setIwa(bg.iwa);
+    setEnergy(bg.energy);
+    setBond(bg.bond);
+    setPaidObligations([]);
+    setTravelMode(bg.hasCar ? "car" : "micra");
     setStarted(true);
-    const homeZone = ARCH_HOME_ZONE[archId] ?? "ui-gate";
-    recordVisit(homeZone);
+    setNode(bg.homeZone);
+    setAvatarZone(bg.homeZone);
+    recordVisit(bg.homeZone);
+    teleportTo(bg.homeZone);
     const g = GENDERS.find((x) => x.id === gender)!;
-    push(`Ẹ káàbọ̀ sí Ìbàdàn, ${username}! ${g.yoruba} · ${arch.name}. Welcome ₦${ECONOMY.WELCOME_BONUS} + base ₦${arch.ola}${extra}.`);
+    jot(`Day 1: born ${bg.name}. ${bg.homeLabel}.`);
+    push(`Ẹ káàbọ̀ sí Ìbàdàn, ${username}! ${g.yoruba} · ${bg.name}. You start with ${naira(pocket)}.${extra}`);
   };
 
   const earn = (dOla: number, dIwa: number, msg: string, tag?: "micra" | "trade" | "exam" | "fullload") => {
@@ -634,7 +683,8 @@ export default function Home() {
         const nd = day + 1;
         setDay(nd);
         setWeather("clear");
-        push(`🌅 Day ${nd} for Ibadan. ${nd % 3 === 0 ? "Baba Ade go knock for rent soon o." : "New mercy, new hustle."}`);
+        push(`🌅 Day ${nd} for Ibadan. New mercy, new hustle.`);
+        onNewDay(nd);
         // needs decay (adapted from lib/ibadanlife/needs to our day cycle)
         const hyg = trait === "cleanfreak" ? 6 : 12;
         const dn = {
@@ -659,7 +709,7 @@ export default function Home() {
         if (dn.hygiene <= 15) push("🚿 Freshen up — body dey tell.");
         if (dn.toilet <= 15 && dn.toilet > 0) push("🚻 Pressed — find toilet now.");
         if (!event && Math.random() < 0.75) {
-          const pool = LIFE_EVENTS.filter((e) => e.id !== "rent" || nd % 3 === 0);
+          const pool = eventsFor(bg.id);
           setEvent(pool[Math.floor(Math.random() * pool.length)]);
         }
       }
@@ -667,16 +717,93 @@ export default function Home() {
     });
   };
 
+  // ---- background life: upkeep, allowance, obligations (runs once per new day) ----
+  const onNewDay = (nd: number) => {
+    const upkeep = upkeepFor(bg);
+    if (upkeep > 0) {
+      setOla((o) => Math.max(0, o - upkeep));
+      push(`⛽ ${bg.dailyUpkeep.map((u) => u.label).join(" + ")}: −${naira(upkeep)}.`);
+    }
+    if (bg.allowancePerWeek > 0 && nd % 7 === 0) {
+      const paid = allowanceDue(bg, nd, bond);
+      if (paid > 0) {
+        setOla((o) => o + paid);
+        push(`💳 Daddy's allowance landed: +${naira(paid)}.`);
+      } else {
+        push(`💳 No allowance this week. Daddy says you know what you did (approval ${bond}).`);
+        jot(`Day ${nd}: allowance stopped — Daddy's approval too low.`);
+      }
+    }
+    for (const o of overdueObligations(bg, nd, paidObligations)) {
+      if (nd === o.dueDay + 1) {
+        setBond((b) => Math.max(0, b - 15));
+        setIwa((v) => Math.max(0, v - 5));
+        jot(`Day ${nd}: missed ${o.title}.`);
+        push(`😞 ${o.title} is overdue. ${bg.bondLabel} −15, Iwa −5. You can still pay it.`);
+      }
+    }
+    for (const o of upcomingObligations(bg, nd, paidObligations, 2)) {
+      if (o.dueDay >= nd) push(`📌 ${o.title}: ${naira(o.amount)} due by Day ${o.dueDay}.`);
+    }
+  };
+
+  const payObligation = (id: string) => {
+    const o = bg.obligations.find((x) => x.id === id);
+    if (!o || paidObligations.includes(id)) return;
+    if (ola < o.amount) {
+      push(`${o.title} needs ${naira(o.amount)}. You hold ${naira(ola)}.`);
+      return;
+    }
+    const late = day > o.dueDay;
+    setOla((x) => x - o.amount);
+    setPaidObligations((p) => [...p, id]);
+    setBond((b) => Math.min(100, b + (late ? 5 : 12)));
+    setIwa((v) => Math.min(100, v + (late ? 2 : 6)));
+    setFamilyCount((n) => n + 1);
+    ensureAudio();
+    coin();
+    jot(`Day ${day}: paid ${o.title}${late ? " (late)" : ""}.`);
+    push(`🙏 Paid ${o.title}: −${naira(o.amount)}. ${bg.bondLabel} +${late ? 5 : 12}.`);
+  };
+
+  // once a day: Omo Iya Lobe helps at Mama's stall; Alowonle shows face at Daddy's office
+  const familyDuty = () => {
+    if (lastFamilyDay === day) {
+      push("You've already done your family duty today.");
+      return;
+    }
+    if (energy < 20) {
+      push("Too tired. Chop or rest first.");
+      return;
+    }
+    setLastFamilyDay(day);
+    setEnergy((e) => Math.max(5, e - 15));
+    setBond((b) => Math.min(100, b + 4));
+    if (bg.id === "omo-iya-lobe") {
+      const tip = 2500;
+      setOla((o) => o + tip);
+      setIwa((v) => Math.min(100, v + 2));
+      meet("Mama Bisi");
+      addSkill("cooking", 10);
+      push(`🍲 You helped Mama sell at Oja'ba. She pressed ${naira(tip)} into your hand. Mama's trust +4.`);
+    } else {
+      setNeeds((n) => ({ ...n, fun: Math.max(0, n.fun - 10) }));
+      meet("Chief Adeyemi");
+      addSkill("charisma", 10);
+      push("👔 You sat through Daddy's site meeting on Ring Road and took notes. Approval +4, fun −10.");
+    }
+  };
+
   const missionMet = (id: string): boolean => {
     switch (id) {
       case "m1": return true;
-      case "m2": return ola >= 800;
+      case "m2": return ola >= 25000;
       case "m3": return micraRuns >= 1;
       case "m4": return trades >= 1;
       case "m5": return examPass >= 3;
       case "m6": return day >= 4;
       case "m7": return familyCount >= 1;
-      case "m8": return ola >= 3000 && iwa >= 60;
+      case "m8": return ola >= 300000 && iwa >= 60;
       default: return false;
     }
   };
@@ -698,25 +825,12 @@ export default function Home() {
 
   const takeEvent = (ev: LifeEvent, optIdx: number) => {
     const o = ev.options[optIdx];
-    let rentAmt = 0;
-    if (ev.id === "rent") {
-      rentAmt = myHood === "bodija" ? ECONOMY.RENT_WEEKLY_BODIJA : ECONOMY.RENT_WEEKLY_AGBOWO;
-      if (optIdx === 0) {
-        if (ola < rentAmt) {
-          push(`Baba Ade no gree — ₦${rentAmt} no complete. Beg day lost, Iwa -3.`);
-          setIwa((v) => Math.max(0, v - 3));
-          setEvent(null);
-          return;
-        }
-        setOla((x) => x - rentAmt);
-        setIwa((v) => Math.min(100, v + 5));
-        meet("Baba Ade");
-        push(`🏠 Rent paid ₦${rentAmt}. Roof secured. Iwa +5.`);
-        setEvent(null);
-        return;
-      }
+    if (o.ola < 0 && ola < -o.ola) {
+      push(`You need ${naira(-o.ola)} for that. Pick the other option or hustle first.`);
+      return;
     }
     setOla((x) => Math.max(0, x + o.ola));
+    if (o.bond) setBond((b) => Math.max(0, Math.min(100, b + (o.bond ?? 0))));
     setIwa((v) => Math.max(0, Math.min(100, v + o.iwa)));
     setEnergy((e) => Math.max(5, Math.min(100, e + o.energy)));
     if (ev.id === "family" && optIdx === 0) {
@@ -775,15 +889,15 @@ export default function Home() {
 
   // freshen up + toilet (once per game day each)
   const freshen = () => {
-    if (ola < 50) {
-      push("Freshen up na ₦50 — pure water no dey free.");
+    if (ola < PRICES.bucketBath) {
+      push(`Freshen up na ${naira(PRICES.bucketBath)} — water no dey free.`);
       return;
     }
     if (lastFreshDay === day) {
       push("🚿 You don fresh already today. Shine go last.");
       return;
     }
-    setOla((o) => o - 50);
+    setOla((o) => o - PRICES.bucketBath);
     setLastFreshDay(day);
     setNeeds((n) => ({ ...n, hygiene: Math.min(100, n.hygiene + 30) }));
     ensureAudio();
@@ -801,7 +915,7 @@ export default function Home() {
   };
 
   const goHome = () => {
-    const hz = ZONES.find((z) => z.id === (ARCH_HOME_ZONE[archId] ?? "ui-gate")) ?? ZONES[0];
+    const hz = ZONES.find((z) => z.id === bg.homeZone) ?? ZONES[0];
     const c = zoneCenter(hz);
     setTeleport((t) => ({ x: c.x, y: c.y + 1.2, key: (t?.key ?? 0) + 1 }));
     setTab("map");
@@ -848,7 +962,7 @@ export default function Home() {
       push("💼 Too tired for shift. Chop or rest first (−20⚡ needed).");
       return;
     }
-    const level = careerLevels[c.id] ?? 1;
+    const level = careerLevels[c.id] ?? entryLevel(c.id, bg.connections);
     const pay = careerPay(c.id, level);
     setLastShiftDay(day);
     addSkill(c.skill, 20);
@@ -858,7 +972,7 @@ export default function Home() {
   const promote = () => {
     const c = CAREERS.find((x) => x.id === careerId);
     if (!c) return;
-    const level = careerLevels[c.id] ?? 1;
+    const level = careerLevels[c.id] ?? entryLevel(c.id, bg.connections);
     if (level >= 5) {
       push(`👑 ${c.name}: you don reach the top — ${c.levels[4].title}. Legend.`);
       return;
@@ -876,11 +990,9 @@ export default function Home() {
     push(`🎉 PROMOTED: ${c.levels[level - 1].title} → ${next.title}! New pay ₦${next.pay.toLocaleString()}/shift.`);
   };
 
-  // ---- travel fares (DISTANCES, adapted: ₦15/km micra, 2⚡/km trek) ----
-  const getDist = (a: string, b: string): number => {
-    if (a === b) return 0;
-    return DISTANCES[a]?.[b] ?? DISTANCES[b]?.[a] ?? 5;
-  };
+  // ---- travel fares (micra per km from PRICES, 2⚡/km trek, car runs on daily fuel) ----
+  const getDist = distanceKm;
+  const micraFare = (km: number) => Math.round(km * PRICES.transport.micraFarePerKm);
 
   const travelTo = (id: string) => {
     if (id === node) {
@@ -911,9 +1023,18 @@ export default function Home() {
       push(`🚶 Trekked ${km}km to ${label} (−${cost}⚡). Free, but legs don hear am.`);
       return;
     }
-    const fare = Math.round(km * 15);
+    if (travelMode === "car" && bg.hasCar) {
+      setEnergy((e) => Math.max(5, e - Math.round(km / 2)));
+      setNode(id);
+      setAvatarZone(id);
+      recordVisit(id);
+      teleportTo(id);
+      push(`🚗 Drove to ${label}, ${km}km. Fuel is already paid for today.`);
+      return;
+    }
+    const fare = micraFare(km);
     if (ola < fare) {
-      push(`🚐 Micra to ${label} na ₦${fare} (${km}km) — insufficient. Trek (free) or hustle first.`);
+      push(`🚐 Micra to ${label} na ${naira(fare)} (${km}km) — insufficient. Trek (free) or hustle first.`);
       return;
     }
     setOla((o) => o - fare);
@@ -922,7 +1043,7 @@ export default function Home() {
     setAvatarZone(id);
     recordVisit(id);
     teleportTo(id);
-    push(`🚐 Micra to ${label}, ${km}km — ₦${fare}. Conductor shout your change complete.`);
+    push(`🚐 Micra to ${label}, ${km}km — ${naira(fare)}. Conductor shout your change complete.`);
   };
 
   // wardrobe: game money now, real naira later (ngn tags ride along)
@@ -1032,7 +1153,7 @@ export default function Home() {
       meet("Ada");
       setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 5) }));
       addSkill("brain", 25);
-      earn(250, 3, `✅ Exam correct! +₦250, Iwa +3. (${q.q})`, "exam");
+      earn(PRICES.examReward, 3, `✅ Exam correct! +${naira(PRICES.examReward)}, Iwa +3. (${q.q})`, "exam");
     } else {
       earn(0, 0, `❌ Fail. Correct: ${q.options[q.answer]}. Try again — no Iwa loss.`, "exam");
     }
@@ -1072,16 +1193,40 @@ export default function Home() {
                   <input value={username} onChange={(e) => setUsername(e.target.value)} placeholder="Pick @name e.g. AdeBodija" className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-cream placeholder:text-cream/40 outline-none focus:border-mapo" />
                 </div>
                 <div>
-                  <div className="mb-1.5 text-[11px] font-extrabold tracking-widest text-mapo">02 · YOUR BACKGROUND</div>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {ARCHETYPES.map((a) => (
-                      <button key={a.id} onClick={() => setArchId(a.id)} className={`rounded-2xl p-3 text-left text-sm ring-1 transition ${archId === a.id ? "bg-mapo text-charcoal ring-mapo" : "bg-white/[0.07] ring-white/10 hover:bg-white/[0.12]"}`}>
-                        <div className="font-bold">{a.name}</div>
-                        <div className="text-xs opacity-80">{a.desc}</div>
-                        <div className="mt-1 text-xs font-semibold">₦{a.ola} · Iwa {a.iwa} · {a.perk}</div>
+                  <div className="mb-1.5 text-[11px] font-extrabold tracking-widest text-mapo">02 · THE LIFE YOU&apos;RE BORN INTO</div>
+                  {!bgId ? (
+                    <div className="rounded-2xl bg-white/[0.07] p-4 ring-1 ring-white/10">
+                      <p className="text-sm leading-relaxed text-cream/80">
+                        Ibadan decides where you start. Most lives begin as <b>Omo Iya Lobe</b>, a soup seller&apos;s child in Beere.
+                        About one in five begin as <b>Alowonle</b>, born into money in Old Bodija. One draw. No reroll.
+                      </p>
+                      <button onClick={drawLife} className="mt-3 w-full rounded-full bg-cream py-2.5 text-sm font-extrabold text-charcoal">
+                        🎲 Draw my life
                       </button>
-                    ))}
-                  </div>
+                    </div>
+                  ) : (
+                    <div aria-live="polite" className={`rounded-2xl p-4 ring-2 ${bg.id === "alowonle" ? "bg-[#1d2a5c] ring-[#3b5bd6]" : "bg-[#3a2416] ring-roof"}`}>
+                      <div className="font-display text-2xl font-extrabold leading-tight">{bg.name}</div>
+                      <div className="text-xs font-semibold text-cream/70">{bg.meaning} · {bg.tagline}</div>
+                      <p className="mt-2 text-sm leading-relaxed text-cream/85">{bg.story}</p>
+                      <div className="mt-3 flex flex-wrap gap-1.5 text-xs font-bold">
+                        <span className="rounded-full bg-mapo px-2.5 py-1 text-charcoal">{naira(bg.pocket)} to start</span>
+                        <span className="rounded-full bg-white/10 px-2.5 py-1">Iwa {bg.iwa}</span>
+                        <span className="rounded-full bg-white/10 px-2.5 py-1">{bg.bondLabel} {bg.bond}</span>
+                        {bg.hasCar && <span className="rounded-full bg-white/10 px-2.5 py-1">🚗 Own car</span>}
+                      </div>
+                      <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+                        <div>
+                          <div className="font-bold text-cream/90">What you have</div>
+                          <ul className="mt-1 space-y-1 text-cream/70">{bg.strengths.map((s) => <li key={s}>{s}</li>)}</ul>
+                        </div>
+                        <div>
+                          <div className="font-bold text-cream/90">What weighs on you</div>
+                          <ul className="mt-1 space-y-1 text-cream/70">{bg.pressures.map((s) => <li key={s}>{s}</li>)}</ul>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div>
                   <div className="mb-1.5 text-[11px] font-extrabold tracking-widest text-mapo">03 · YOUR BODY</div>
@@ -1114,8 +1259,8 @@ export default function Home() {
                   </div>
                 </div>
                 <input value={refInput} onChange={(e) => setRefInput(e.target.value)} placeholder="Referral code (optional) e.g. ADE24" className="w-full rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-cream placeholder:text-cream/40 outline-none focus:border-mapo" />
-                <button onClick={start} disabled={!username.trim()} className="w-full rounded-full bg-gradient-to-r from-mapo to-[#f5c04a] py-3.5 font-display text-base font-extrabold text-charcoal shadow-lg disabled:opacity-40">
-                  Enter Ibadan → Welcome ₦{ECONOMY.WELCOME_BONUS}
+                <button onClick={start} disabled={!username.trim() || !bgId} className="w-full rounded-full bg-gradient-to-r from-mapo to-[#f5c04a] py-3.5 font-display text-base font-extrabold text-charcoal shadow-lg disabled:opacity-40">
+                  {bgId ? `Enter Ibadan as ${bg.name}` : "Enter Ibadan — draw your life first"}
                 </button>
                 <p className="text-center text-xs text-cream/50">Virtual Naira only. No cashout. Iwa no dey buyable. <a href="/how-to-play" className="underline">Learn the loop first →</a></p>
               </div>
@@ -1177,10 +1322,10 @@ export default function Home() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="font-display text-base font-extrabold tracking-tight">@{username} <span className="text-mapo">· {title}</span></div>
-              <div className="text-xs text-cream/60">{nodeName} · {arch.name} · {gender === "okunrin" ? "Ọkùnrin" : "Obìnrin"}</div>
+              <div className="text-xs text-cream/60">{nodeName} · {bg.name} · {gender === "okunrin" ? "Ọkùnrin" : "Obìnrin"}</div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5 text-[13px]">
-              <span className="rounded-full bg-gradient-to-r from-mapo to-[#f5c04a] px-3 py-1 font-extrabold text-charcoal">₦{ola}</span>
+              <span className="rounded-full bg-gradient-to-r from-mapo to-[#f5c04a] px-3 py-1 font-extrabold text-charcoal">{naira(ola)}</span>
               <span className="rounded-full bg-agodi px-3 py-1 font-bold text-white">🕊 {iwa}</span>
               <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">⚡{energy}</span>
               <span className="rounded-full bg-white/15 px-3 py-1 font-semibold" title="Mood: from your energy + Iwa">{mood}</span>
@@ -1221,7 +1366,7 @@ export default function Home() {
                 {t === "map" && "🗺 Map"}{t === "hustle" && "🚐 Hustle"}{t === "exam" && "📝 Exam"}{t === "story" && "📖 Itan"}{t === "ile" && "🏠 Ilé"}{t === "ra" && "🛍️ Rà"}{t === "owambe" && "💃 Owambe"}{t === "rin" && "🚶 Rìn"}{t === "fonu" && "📱 Fọ́nu"}{t === "ojude" && "📣 Ojude"}
               </button>
             ))}
-            <button onClick={chop} className="rounded-full bg-white/10 px-4 py-1.5 text-[13px] font-semibold hover:bg-white/15">🍲 Chop ₦{ECONOMY.CHOP_COST}</button>
+            <button onClick={chop} className="rounded-full bg-white/10 px-4 py-1.5 text-[13px] font-semibold hover:bg-white/15">🍲 Chop {naira(ECONOMY.CHOP_COST)}</button>
             <button onClick={goHome} className="rounded-full bg-white/10 px-4 py-1.5 text-[13px] font-semibold hover:bg-white/15">🏠 Go home</button>
           </div>
         </div>
@@ -1279,11 +1424,11 @@ export default function Home() {
             greeted={shopGreetDay === day}
             onChop={() => { chop(); }}
             onSpecial={() => {
-              if (ola < 250) {
-                push("Mama Special na ₦250 — hustle come back.");
+              if (ola < PRICES.food.mamaSpecial) {
+                push(`Mama Special na ${naira(PRICES.food.mamaSpecial)} — hustle come back.`);
                 return;
               }
-              setOla((o) => o - 250);
+              setOla((o) => o - PRICES.food.mamaSpecial);
               setEnergy((e) => Math.min(100, e + 45));
               setNeeds((n) => ({ ...n, hunger: Math.min(100, n.hunger + 45) }));
               push("⭐ Mama Special: ofada + fried plantain, extra meat. Energy +45. Bodija remembers you.");
@@ -1318,26 +1463,26 @@ export default function Home() {
               push(msg);
             }}
             onHaircut={() => {
-              if (ola < 200) {
-                push("Lowcut na ₦200 — clippers no dey on credit.");
+              if (ola < PRICES.barberLowcut) {
+                push(`Lowcut na ${naira(PRICES.barberLowcut)} — clippers no dey on credit.`);
                 return;
               }
-              setOla((o) => o - 200);
+              setOla((o) => o - PRICES.barberLowcut);
               setLook((l) => ({ ...l, gear: "none" }));
               setIwa((v) => Math.min(100, v + 1));
               push("💈 Fresh lowcut! Mirror confesses: fine pikin. Iwa +1.");
             }}
             onWatch={() => {
-              if (ola < 100) {
-                push("Gate fee na ₦100. No free match.");
+              if (ola < PRICES.viewingCentre) {
+                push(`Gate fee na ${naira(PRICES.viewingCentre)}. No free match.`);
                 return;
               }
-              setOla((o) => o - 100);
+              setOla((o) => o - PRICES.viewingCentre);
               setEnergy((e) => Math.max(5, e - 5));
               if (viewDay !== day) {
                 setViewDay(day);
                 setIwa((v) => Math.min(100, v + 2));
-                push("📺 WHAT A GOAL! You hug strangers. Iwa +2. Best ₦100 this week.");
+                push(`📺 WHAT A GOAL! You hug strangers. Iwa +2. Best ${naira(PRICES.viewingCentre)} this week.`);
               } else {
                 push("📺 Second half gist. Same noise, same joy.");
               }
@@ -1375,7 +1520,7 @@ export default function Home() {
             {doorOpen.action === "exam" && (
               <div className="rounded-3xl bg-white p-4 ring-1 ring-roof/10">
                 <h3 className="font-display text-base font-extrabold tracking-tight">📝 Exam hall — live desk</h3>
-                <p className="text-xs text-charcoal/55">Same desk, same brain. +₦250 + Iwa +3 per pass.</p>
+                <p className="text-xs text-charcoal/55">Same desk, same brain. +{naira(PRICES.examReward)} + Iwa +3 per pass.</p>
                 <p className="mt-3 text-[15px] font-bold">{q.q}</p>
                 <div className="mt-2 grid gap-2">
                   {q.options.map((o, i) => (
@@ -1433,8 +1578,11 @@ export default function Home() {
               </div>
               <div className="rounded-3xl bg-white p-4 shadow-[0_16px_40px_-20px_rgba(122,74,43,0.35)] ring-1 ring-roof/10 sm:p-5">
                 <h3 className="font-display text-base font-extrabold tracking-tight">🗺 Districts</h3>
-                <p className="mb-2 text-xs text-charcoal/55">Travel costs by real distance — micra ₦15/km, trek free but tiring. ≤2km na free waka.</p>
+                <p className="mb-2 text-xs text-charcoal/55">Travel costs by distance — micra about {naira(PRICES.transport.micraFarePerKm)}/km, trek free but tiring{bg.hasCar ? ", your car runs on the day's fuel" : ""}. ≤2km na free waka.</p>
                 <div className="mb-3 flex gap-1.5 rounded-full bg-cream p-1 text-xs font-bold ring-1 ring-roof/10">
+                  {bg.hasCar && (
+                    <button onClick={() => setTravelMode("car")} className={`flex-1 rounded-full py-1.5 ${travelMode === "car" ? "bg-charcoal text-cream" : "text-charcoal/60"}`}>🚗 Car</button>
+                  )}
                   <button onClick={() => setTravelMode("micra")} className={`flex-1 rounded-full py-1.5 ${travelMode === "micra" ? "bg-charcoal text-cream" : "text-charcoal/60"}`}>🚐 Micra</button>
                   <button onClick={() => setTravelMode("trek")} className={`flex-1 rounded-full py-1.5 ${travelMode === "trek" ? "bg-charcoal text-cream" : "text-charcoal/60"}`}>🚶 Trek (free)</button>
                 </div>
@@ -1444,7 +1592,8 @@ export default function Home() {
                   getFare={(id) => {
                     const km = getDist(node, id);
                     if (km <= 2 || id === node) return null;
-                    return travelMode === "trek" ? `${km}km · ${Math.round(km * 2)}⚡` : `${km}km · ₦${Math.round(km * 15)}`;
+                    if (travelMode === "car" && bg.hasCar) return `${km}km · 🚗`;
+                    return travelMode === "trek" ? `${km}km · ${Math.round(km * 2)}⚡` : `${km}km · ${naira(micraFare(km))}`;
                   }}
                   onSelect={(id) => travelTo(id)}
                 />
@@ -1471,7 +1620,7 @@ export default function Home() {
                 </div>
                 {(() => {
                   const c = CAREERS.find((x) => x.id === careerId);
-                  const level = c ? (careerLevels[c.id] ?? 1) : 1;
+                  const level = c ? (careerLevels[c.id] ?? entryLevel(c.id, bg.connections)) : 1;
                   const next = c && level < 5 ? c.levels[level] : null;
                   const haveXp = c ? (skills[c.skill]?.level ?? 0) : 0;
                   return (
@@ -1481,21 +1630,25 @@ export default function Home() {
                         onChange={(e) => {
                           setCareerId(e.target.value || null);
                           const nc = CAREERS.find((x) => x.id === e.target.value);
-                          if (nc) push(`💼 You sign up as ${nc.levels[0].title} — ${nc.name} @ ${nc.workplace}. First shift pays ₦${nc.levels[0].pay.toLocaleString()}.`);
+                          if (nc) {
+                            const lv = careerLevels[nc.id] ?? entryLevel(nc.id, bg.connections);
+                            const via = lv > 1 ? (bg.id === "alowonle" ? " Daddy made a call." : " Mama's people vouched for you.") : "";
+                            push(`💼 You sign up as ${nc.levels[lv - 1].title} — ${nc.name} @ ${nc.workplace}. Shift pays ${naira(nc.levels[lv - 1].pay)}.${via}`);
+                          }
                         }}
                         className="w-full rounded-2xl bg-white/10 px-3 py-2.5 text-sm font-bold outline-none focus:border-mapo"
                       >
                         <option value="">— Pick your hustle —</option>
                         {CAREERS.map((x) => (
                           <option key={x.id} value={x.id} className="text-charcoal">
-                            {x.name} · {x.workplace} · ₦{x.levels[0].pay.toLocaleString()}/shift
+                            {x.name} · {x.workplace} · {naira(x.levels[entryLevel(x.id, bg.connections) - 1].pay)}/shift{bg.connections.includes(x.id) ? " · connection" : ""}
                           </option>
                         ))}
                       </select>
                       {c && (
                         <div className="mt-3 rounded-2xl bg-white/[0.07] p-3 ring-1 ring-white/10">
                           <div className="text-sm font-bold">{c.levels[level - 1].title} <span className="font-semibold text-cream/60">· Lv{level}/5 · {c.name}</span></div>
-                          <div className="text-xs text-cream/60">{c.blurb} · shift: ₦{careerPay(c.id, level).toLocaleString()} · −20⚡ · +20 {c.skill} XP</div>
+                          <div className="text-xs text-cream/60">{c.blurb} · shift: {naira(careerPay(c.id, level))} · −20⚡ · +20 {c.skill} XP</div>
                           <div className="mt-1.5">
                             <div className="flex justify-between text-[11px] font-bold">
                               <span>{SKILLS.find((s) => s.id === c.skill)?.icon} {c.skill} Lv{haveXp}</span>
@@ -1576,7 +1729,7 @@ export default function Home() {
           {tab === "exam" && (
             <div className="rounded-3xl bg-white p-5 shadow-[0_16px_40px_-20px_rgba(122,74,43,0.35)] ring-1 ring-roof/10">
               <h3 className="font-display text-lg font-extrabold tracking-tight">📝 UI Exam Survival</h3>
-              <p className="text-xs text-charcoal/55">+₦250 + Iwa +3 per pass · unlocks better jobs in V2</p>
+              <p className="text-xs text-charcoal/55">+{naira(PRICES.examReward)} + Iwa +3 per pass</p>
               <p className="mt-3 text-[15px] font-bold">{q.q}</p>
               <div className="mt-2 grid gap-2">
                 {q.options.map((o, i) => (
@@ -1658,7 +1811,7 @@ export default function Home() {
                 <h3 className="font-display text-base font-extrabold tracking-tight">🏘️ Your compound</h3>
                 <p className="mb-3 text-xs text-charcoal/55">Walk it in 3D or survey it in 2D — same elders, same chickens.</p>
                 <CompoundCard
-                  archId={archId}
+                  compound={bg.compound}
                   greeted={lastGreetDay === day}
                   onGreet={() => {
                     if (lastGreetDay === day) return;
@@ -1682,8 +1835,8 @@ export default function Home() {
               </div>
             )}
             <HomeTab
-              archId={archId}
-              archName={arch.name}
+              bgId={bg.id}
+              bgName={bg.name}
               home={home}
               ola={ola}
               onBuy={buyFurniture}
@@ -1705,7 +1858,7 @@ export default function Home() {
                   <div className="font-display mt-1 text-base font-extrabold">🎯 {hunt.title}</div>
                   <div className="mt-1 text-sm text-cream/70">{hunt.desc}</div>
                   <div className="mt-3 flex items-center justify-between">
-                    <span className="text-xs font-semibold text-cream/60">+₦{hunt.rewardOla} · Iwa +{hunt.rewardIwa} · once daily</span>
+                    <span className="text-xs font-semibold text-cream/60">+{naira(hunt.rewardOla)} · Iwa +{hunt.rewardIwa} · once daily</span>
                     {claimed ? (
                       <span className="rounded-full bg-agodi px-4 py-1.5 text-xs font-bold text-white">✅ Cleared</span>
                     ) : (
@@ -1734,7 +1887,7 @@ export default function Home() {
                       <div className="text-sm font-bold">{isDone ? "✅ " : ""}{m.title}</div>
                       <div className="text-xs text-charcoal/60">{m.desc}</div>
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-xs font-semibold text-charcoal/60">+₦{m.rewardOla} · Iwa +{m.rewardIwa}</span>
+                        <span className="text-xs font-semibold text-charcoal/60">+{naira(m.rewardOla)} · Iwa +{m.rewardIwa}</span>
                         {!isDone && (
                           <button onClick={() => claim(m.id)} disabled={!met} className={`rounded-full px-4 py-1.5 text-xs font-bold ${met ? "bg-charcoal text-cream" : "bg-charcoal/10 text-charcoal/40"}`}>
                             {met ? "Claim" : "Locked"}
@@ -1758,7 +1911,7 @@ export default function Home() {
                       <div className="text-sm font-bold">{isDone ? "✅ " : ""}{d.title}</div>
                       <div className="text-xs text-charcoal/60">{d.desc}</div>
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-xs font-semibold text-charcoal/60">+₦{d.rewardOla} · Iwa +{d.rewardIwa}</span>
+                        <span className="text-xs font-semibold text-charcoal/60">+{naira(d.rewardOla)} · Iwa +{d.rewardIwa}</span>
                         {!isDone && (
                           <button onClick={() => claimDeed(d.id)} disabled={!met} className={`rounded-full px-3 py-1 text-[11px] font-bold ${met ? "bg-charcoal text-cream" : "bg-charcoal/10 text-charcoal/40"}`}>
                             {met ? "Seal" : "Locked"}
@@ -1841,7 +1994,7 @@ export default function Home() {
               </div>
               <div className="rounded-3xl bg-white p-5 shadow ring-1 ring-roof/10">
                 <h3 className="font-display font-extrabold tracking-tight">🔗 Referral — invite your guys</h3>
-                <p className="mt-1 text-sm text-charcoal/65">Your code: <b className="text-roof">{myCode}</b> · You +₦{ECONOMY.REFERRAL_GIVER}/friend (max {ECONOMY.REFERRAL_WEEKLY_CAP}/week) · Friend +₦{ECONOMY.REFERRAL_JOINER_EXTRA}. Virtual only.</p>
+                <p className="mt-1 text-sm text-charcoal/65">Your code: <b className="text-roof">{myCode}</b> · You +{naira(ECONOMY.REFERRAL_GIVER)}/friend (max {ECONOMY.REFERRAL_WEEKLY_CAP}/week) · Friend +{naira(ECONOMY.REFERRAL_JOINER_EXTRA)}. Virtual only.</p>
                 <div className="mt-3 flex gap-2">
                   <input readOnly value={shareLink} className="w-full rounded-full bg-cream px-4 py-2.5 text-sm ring-1 ring-roof/10" />
                   <button onClick={() => { navigator.clipboard?.writeText(shareLink); setInvites(invites + 1); push("Referral link copied. Share for WhatsApp!"); }} className="shrink-0 rounded-full bg-charcoal px-4 py-2.5 text-sm font-bold text-cream">Copy</button>
@@ -1882,10 +2035,60 @@ export default function Home() {
                 })}
               </div>
               <div className="mt-2 grid grid-cols-2 gap-1.5">
-                <button onClick={freshen} className="rounded-full bg-white/10 px-2 py-1.5 text-[11px] font-bold hover:bg-white/15">🚿 Freshen ₦50</button>
+                <button onClick={freshen} className="rounded-full bg-white/10 px-2 py-1.5 text-[11px] font-bold hover:bg-white/15">🚿 Freshen {naira(PRICES.bucketBath)}</button>
                 <button onClick={useToilet} className="rounded-full bg-white/10 px-2 py-1.5 text-[11px] font-bold hover:bg-white/15">🚻 Toilet</button>
               </div>
               <div className="mt-2 text-xs text-cream/55">🌅 Day {day} · {nodeName}</div>
+            </div>
+            <div className="rounded-3xl bg-white p-4 ring-1 ring-roof/10">
+              <h3 className="font-display text-base font-extrabold tracking-tight">{bg.id === "alowonle" ? "👔 Family" : "🍲 Family"}</h3>
+              <p className="text-xs text-charcoal/55">{bg.name} · {bg.homeLabel}</p>
+              <div className="mt-2 flex items-center justify-between text-[11px] font-bold">
+                <span>{bg.bondLabel}</span>
+                <span className={bond < 30 ? "text-red-600" : "text-charcoal/60"}>{bond}</span>
+              </div>
+              <div className="mt-0.5 h-1.5 overflow-hidden rounded-full bg-charcoal/10">
+                <div className={`h-full rounded-full ${bond < 30 ? "bg-red-500" : "bg-agodi"}`} style={{ width: `${bond}%` }} />
+              </div>
+              {bg.allowancePerWeek > 0 && (
+                <p className="mt-1 text-[11px] text-charcoal/55">
+                  Allowance {naira(bg.allowancePerWeek)} every 7th day while approval stays at {bg.allowanceMinBond}+.
+                </p>
+              )}
+              <button
+                onClick={familyDuty}
+                disabled={lastFamilyDay === day}
+                className="mt-2 w-full rounded-full bg-charcoal py-2 text-xs font-bold text-cream disabled:opacity-40"
+              >
+                {lastFamilyDay === day
+                  ? "Family duty done today ✅"
+                  : bg.id === "alowonle"
+                    ? "Sit in on Daddy's site meeting (−15⚡)"
+                    : "Help Mama at the stall (−15⚡)"}
+              </button>
+              {bg.obligations.length > 0 && (
+                <div className="mt-3 space-y-1.5">
+                  {bg.obligations.map((o) => {
+                    const paid = paidObligations.includes(o.id);
+                    const late = !paid && day > o.dueDay;
+                    return (
+                      <div key={o.id} className={`rounded-2xl p-2.5 text-xs ring-1 ${late ? "bg-red-50 ring-red-200" : "bg-cream ring-roof/10"}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className="font-bold">{o.title}</div>
+                            <div className="text-charcoal/60">{paid ? "Paid ✅" : `${naira(o.amount)} · ${late ? `overdue since Day ${o.dueDay}` : `due Day ${o.dueDay}`}`}</div>
+                          </div>
+                          {!paid && (
+                            <button onClick={() => payObligation(o.id)} disabled={ola < o.amount} className="shrink-0 rounded-full bg-mapo px-3 py-1 font-bold text-charcoal disabled:opacity-40">
+                              Pay
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             <div className="rounded-3xl bg-white p-4 ring-1 ring-roof/10">
               <div className="text-[10px] font-extrabold tracking-[0.25em] text-roof">NEXT MISSIONS</div>
@@ -1896,7 +2099,7 @@ export default function Home() {
                     <div key={m.id} className="flex items-center justify-between gap-2 rounded-2xl bg-cream px-3 py-2 ring-1 ring-roof/10">
                       <div>
                         <div className="text-xs font-bold">{m.title}</div>
-                        <div className="text-[11px] text-charcoal/55">+₦{m.rewardOla} · Iwa +{m.rewardIwa}</div>
+                        <div className="text-[11px] text-charcoal/55">+{naira(m.rewardOla)} · Iwa +{m.rewardIwa}</div>
                       </div>
                       <button onClick={() => claim(m.id)} disabled={!met} className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${met ? "bg-charcoal text-cream" : "bg-charcoal/10 text-charcoal/40"}`}>
                         {met ? "Claim" : "···"}

@@ -1,3 +1,5 @@
+import { PRICES } from "./game/prices";
+import type { BackgroundId } from "./game/backgrounds";
 // World data — tile grid for the isometric diorama.
 // Same 15 nodes as lib/game.ts MAP_NODES, laid out as walkable zones.
 // Renderer-agnostic: this grid ports straight to Three.js later.
@@ -86,15 +88,14 @@ export function buildRoads(): { x: number; y: number }[][] {
 }
 
 // ---- Homes: empty decor → hustle to furnish → flat → duplex ----
-// Every archetype starts with an EMPTY room. Furniture is bought with
-// hustled Ola; each piece raises rest bonus. Tier upgrades unlock
-// bigger catalogs. Interiors UI lands with avatars (Milestone 3);
-// this model + save shape is frozen now so progress carries over.
+// Every life starts in a sparse room. Furniture is bought with hustled Ola;
+// each piece raises rest bonus. Moving up a tier costs a year's rent upfront
+// plus agent and caution fees (see PRICES.housing).
 
 export type HomeTier = "room" | "flat" | "duplex";
 
 export interface HomePath {
-  archId: string;
+  bgId: BackgroundId;
   room: string;
   flat: string;
   duplex: string;
@@ -102,12 +103,12 @@ export interface HomePath {
   duplexCost: number;
 }
 
+const RENT = PRICES.housing.rentYear;
+const MOVE = PRICES.housing.moveCost;
+
 export const HOME_PATHS: HomePath[] = [
-  { archId: "ui-student", room: "Agbowo single room (empty)", flat: "Self-contain, Samonda", duplex: "Duplex, Bodija", flatCost: 6000, duplexCost: 20000 },
-  { archId: "poly-hustler", room: "Sango face-me room (empty)", flat: "Self-contain, Sango", duplex: "Duplex, Jericho", flatCost: 5500, duplexCost: 18000 },
-  { archId: "bodija-pikin", room: "Family house room, Bodija (empty)", flat: "Flat, New Bodija", duplex: "Duplex, Old Bodija", flatCost: 7000, duplexCost: 22000 },
-  { archId: "beere-omoluabi", room: "Compound room, Beere (empty)", flat: "Flat, Oke-Ado", duplex: "Duplex, Iyaganku", flatCost: 5000, duplexCost: 17000 },
-  { archId: "dugbe-bigboy", room: "Mini-flat, Dugbe (empty)", flat: "Flat, Ring Road", duplex: "Duplex, Iyaganku GRA", flatCost: 8000, duplexCost: 25000 },
+  { bgId: "omo-iya-lobe", room: "Your corner of Mama's room, Beere", flat: "Self-contain, Oke-Ado", duplex: "Duplex, Iyaganku", flatCost: MOVE(RENT.selfContain), duplexCost: MOVE(RENT.jerichoDuplex) },
+  { bgId: "alowonle", room: "Boys' quarters room, Daddy's house, Old Bodija", flat: "Your own flat, New Bodija", duplex: "Duplex, Jericho GRA", flatCost: MOVE(RENT.bodijaFlat), duplexCost: MOVE(RENT.jerichoDuplex) },
 ];
 
 export interface Furniture {
@@ -121,17 +122,17 @@ export interface Furniture {
 
 export const FURNITURE: Furniture[] = [
   { id: "mat", name: "Floor mat", cost: 0, rest: 0, minTier: "room", iwa: 0 },
-  { id: "mattress", name: "Foam mattress", cost: 800, rest: 5, minTier: "room", iwa: 0 },
-  { id: "fan", name: "Standing fan", cost: 1500, rest: 8, minTier: "room", iwa: 0 },
-  { id: "rug", name: "Center rug", cost: 1200, rest: 4, minTier: "room", iwa: 1 },
-  { id: "curtains", name: "Curtains", cost: 1000, rest: 3, minTier: "room", iwa: 1 },
-  { id: "shelf", name: "Bookshelf (exam +5% flavor)", cost: 2000, rest: 4, minTier: "room", iwa: 2 },
-  { id: "gen", name: "Small gen (NEPA-proof rest)", cost: 5000, rest: 12, minTier: "flat", iwa: 1 },
-  { id: "tv", name: "TV + decoder", cost: 8000, rest: 10, minTier: "flat", iwa: 0 },
-  { id: "fridge", name: "Fridge (chop cheaper)", cost: 12000, rest: 12, minTier: "flat", iwa: 1 },
-  { id: "sofa", name: "Sofa set (host elders)", cost: 9000, rest: 8, minTier: "flat", iwa: 3 },
-  { id: "ac", name: "AC (duplex flex)", cost: 25000, rest: 18, minTier: "duplex", iwa: 0 },
-  { id: "dining", name: "Dining set (family feasts)", cost: 15000, rest: 10, minTier: "duplex", iwa: 4 },
+  { id: "mattress", name: "Foam mattress", cost: PRICES.furniture.mattress, rest: 5, minTier: "room", iwa: 0 },
+  { id: "fan", name: "Standing fan", cost: PRICES.furniture.fan, rest: 8, minTier: "room", iwa: 0 },
+  { id: "rug", name: "Center rug", cost: PRICES.furniture.rug, rest: 4, minTier: "room", iwa: 1 },
+  { id: "curtains", name: "Curtains", cost: PRICES.furniture.curtains, rest: 3, minTier: "room", iwa: 1 },
+  { id: "shelf", name: "Bookshelf (exam +5% flavor)", cost: PRICES.furniture.shelf, rest: 4, minTier: "room", iwa: 2 },
+  { id: "gen", name: "Small gen (NEPA-proof rest)", cost: PRICES.furniture.gen, rest: 12, minTier: "flat", iwa: 1 },
+  { id: "tv", name: "TV + decoder", cost: PRICES.furniture.tv, rest: 10, minTier: "flat", iwa: 0 },
+  { id: "fridge", name: "Fridge (chop cheaper)", cost: PRICES.furniture.fridge, rest: 12, minTier: "flat", iwa: 1 },
+  { id: "sofa", name: "Sofa set (host elders)", cost: PRICES.furniture.sofa, rest: 8, minTier: "flat", iwa: 3 },
+  { id: "ac", name: "AC (duplex flex)", cost: PRICES.furniture.ac, rest: 18, minTier: "duplex", iwa: 0 },
+  { id: "dining", name: "Dining set (family feasts)", cost: PRICES.furniture.dining, rest: 10, minTier: "duplex", iwa: 4 },
 ];
 
 export interface HomeSave {
@@ -279,22 +280,6 @@ export function roadsideSpots(): RoadsideSpec[] {
 }
 
 // ---- Avatars ----
-export const ARCH_HOME_ZONE: Record<string, string> = {
-  "ui-student": "ui-gate",
-  "poly-hustler": "sango",
-  "bodija-pikin": "bodija",
-  "beere-omoluabi": "mapo",
-  "dugbe-bigboy": "dugbe",
-};
-
-export const ARCH_COLOR: Record<string, string> = {
-  "ui-student": "#1F7A4D",
-  "poly-hustler": "#E8A020",
-  "bodija-pikin": "#B33A3A",
-  "beere-omoluabi": "#7A4A2B",
-  "dugbe-bigboy": "#3b5bd6",
-};
-
 export interface Ghost {
   name: string;
   color: string;

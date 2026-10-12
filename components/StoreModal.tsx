@@ -3,6 +3,8 @@
 // Walk-in store interior (scoped V1): step off the street into a market
 // stall — trader greets you gendered, chop Mama Put's special, haggle,
 // greet. Reuses the same economy; no new currency.
+import { PRICES, naira } from "@/lib/game";
+
 export default function StoreModal({
   stall,
   greeting,
@@ -86,11 +88,11 @@ export default function StoreModal({
             </button>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={onChop} className="rounded-2xl bg-cream px-4 py-2.5 text-sm font-bold ring-1 ring-roof/15">
-                🍲 Chop ₦150
+                🍲 Chop {naira(PRICES.food.amalaPlate)}
               </button>
               {canChopSpecial && (
                 <button onClick={onSpecial} className="rounded-2xl bg-mapo/25 px-4 py-2.5 text-sm font-bold ring-1 ring-mapo/40">
-                  ⭐ Mama Special ₦250
+                  ⭐ Mama Special {naira(PRICES.food.mamaSpecial)}
                 </button>
               )}
             </div>

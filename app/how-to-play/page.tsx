@@ -1,6 +1,6 @@
 import Link from "next/link";
 import AdSlot from "@/components/AdSlot";
-import { ARCHETYPES, ECONOMY, TITLE_LADDER } from "@/lib/game";
+import { BACKGROUND_LIST, PRICES, TITLE_LADDER, naira } from "@/lib/game";
 
 export const metadata = {
   title: "How to play — Omo Ibadan",
@@ -13,17 +13,17 @@ export default function HowToPlay() {
       <div className="text-[11px] font-extrabold tracking-[0.25em] text-roof">GUIDE · 5 MIN READ</div>
       <h1 className="font-display mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">How to play Omo Ibadan</h1>
       <p className="mt-3 text-[15px] leading-relaxed text-charcoal/70">
-        You land in Ibadan with a welcome ₦{ECONOMY.WELCOME_BONUS} plus your background base. From there, life is a loop:
-        hustle for Ola, chop to keep energy, survive NEPA and rent, and grow both wealth and character until the city calls you Mogaji.
+        Ibadan decides where you start. You're born either Omo Iya Lobe, a soup seller's child from the old city, or Alowonle, born into money in Bodija.
+        From there, life is a loop: hustle for Ola, chop to keep energy, carry your family, and grow both wealth and character until the city calls you Mogaji.
       </p>
 
       <div className="mt-6 space-y-3">
         {[
-          { t: "1 · Pick who you are", d: "Choose one of 5 backgrounds — UI Student, Poly Hustler, Bodija Trader Pikin, Beere Omoluabi, Dugbe Big Boy. Each starts with different Ola, Iwa, energy, and a perk. Then pick Omo Ibadan (full Yoruba depth) or Ajala visitor mode (everything explained small-small)." },
+          { t: "1 · See the life you're born into", d: "The birth lottery draws your life once: most players are born Omo Iya Lobe, about one in five are born Alowonle. There's no reroll. Then pick your body, a trait, and Omo Ibadan (full Yoruba depth) or Ajala visitor mode (everything explained small-small)." },
           { t: "2 · Hustle micra", d: "Ride as a passenger for a calm cinematic trip, or drive: load up to 6, steer across 3 lanes, dodge keke, okada, potholes and VIO, and STOP inside the yellow box to collect fares. Overload pays more — until VIO catches you." },
-          { t: "3 · Trade Bodija", d: "Buy stock cheap at Oja Oba (₦400), carry it to Bodija, read customer mood, and haggle: price too high and they walk away calling you ole. Sell fair and your Iwa grows." },
-          { t: "4 · Pass exams", d: "UI Exam Survival quizzes you on Ibadan history, proverbs, and street sense. Each pass pays ₦250 + Iwa. Three passes complete a story mission." },
-          { t: "5 · Survive the week", d: "Every 6 hustle actions is a new day. IBEDC blackouts, rain-locked Ring Road, Sunday family meetings, and Baba Ade's rent knock every 3rd day. Keep reserves — overspending early stalls you like real life." },
+          { t: "3 · Trade Bodija", d: `Buy stock cheap at Oja Oba (${naira(PRICES.market.stockBag)}), carry it to Bodija, read customer mood, and haggle: price too high and they walk away calling you ole. Sell fair and your Iwa grows.` },
+          { t: "4 · Pass exams", d: `UI Exam Survival quizzes you on Ibadan history, proverbs, and street sense. Each pass pays ${naira(PRICES.examReward)} + Iwa. Three passes complete a story mission.` },
+          { t: "5 · Survive the week", d: "Every 6 hustle actions is a new day. IBEDC blackouts and rain-locked Ring Road hit everyone. Omo Iya Lobe carries Mama's rent balance and Tunde's school fees; Alowonle burns fuel daily and keeps Daddy's allowance only while his approval holds. Keep reserves — overspending early stalls you like real life." },
           { t: "6 · Rep your hood, earn titles", d: "All six hoods compete weekly; your earnings feed your hood's total. Titles run Omo Adugbo → Mogaji → Olubadan of Hustle — and no amount of Ola crowns you without 60+ Iwa." },
         ].map((s) => (
           <div key={s.t} className="rounded-3xl bg-white p-5 shadow-sm ring-1 ring-roof/10">
@@ -34,13 +34,13 @@ export default function HowToPlay() {
       </div>
 
       <div className="mt-6 rounded-3xl bg-charcoal p-5 text-cream">
-        <div className="font-display font-extrabold">Starting backgrounds</div>
+        <div className="font-display font-extrabold">The two lives</div>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
-          {ARCHETYPES.map((a) => (
-            <div key={a.id} className="rounded-2xl bg-white/[0.07] p-3 text-sm ring-1 ring-white/10">
-              <div className="font-bold">{a.name}</div>
-              <div className="text-xs text-cream/60">{a.desc}</div>
-              <div className="mt-1 text-xs font-semibold text-mapo">₦{a.ola} · Iwa {a.iwa} · {a.perk}</div>
+          {BACKGROUND_LIST.map((b) => (
+            <div key={b.id} className="rounded-2xl bg-white/[0.07] p-3 text-sm ring-1 ring-white/10">
+              <div className="font-bold">{b.name} <span className="font-semibold text-cream/60">· {b.meaning}</span></div>
+              <div className="mt-1 text-xs text-cream/70">{b.story}</div>
+              <div className="mt-1 text-xs font-semibold text-mapo">Starts with {naira(b.pocket)} · Iwa {b.iwa} · about {Math.round(b.odds * 100)}% of lives</div>
             </div>
           ))}
         </div>

@@ -6,23 +6,23 @@ const TIER_ORDER: HomeTier[] = ["room", "flat", "duplex"];
 const TIER_EMOJI: Record<HomeTier, string> = { room: "🛏️", flat: "🏠", duplex: "🏰" };
 
 export default function HomeTab({
-  archId,
-  archName,
+  bgId,
+  bgName,
   home,
   ola,
   onBuy,
   onUpgrade,
   onRest,
 }: {
-  archId: string;
-  archName: string;
+  bgId: string;
+  bgName: string;
   home: HomeSave;
   ola: number;
   onBuy: (cost: number, iwa: number, msg: string, furnitureId: string) => void;
   onUpgrade: (cost: number, tier: HomeTier, msg: string) => void;
   onRest: (energy: number, msg: string) => void;
 }) {
-  const path = HOME_PATHS.find((p) => p.archId === archId) ?? HOME_PATHS[0];
+  const path = HOME_PATHS.find((p) => p.bgId === bgId) ?? HOME_PATHS[0];
   const tierIdx = TIER_ORDER.indexOf(home.tier);
   const homeName =
     home.tier === "room" ? path.room : home.tier === "flat" ? path.flat : path.duplex;
@@ -75,12 +75,13 @@ export default function HomeTab({
           <div className="text-[11px] font-extrabold tracking-widest text-roof">NEXT MOVE-UP</div>
           <div className="font-display text-base font-extrabold">{TIER_EMOJI[nextTier]} {nextName}</div>
           <div className="mt-1 text-sm font-bold text-charcoal/70">₦{nextCost.toLocaleString()} {ola >= nextCost ? "→ Tap to move" : `(need ₦${(nextCost - ola).toLocaleString()} more)`}</div>
+          <div className="text-[11px] text-charcoal/50">A year&apos;s rent upfront, plus agent and caution fees.</div>
         </button>
       )}
 
       <div className="rounded-3xl bg-white p-4 shadow ring-1 ring-roof/10 sm:p-5">
         <h4 className="font-display font-extrabold tracking-tight">🪑 Furniture market</h4>
-        <p className="text-xs text-charcoal/55">Start empty, hustle to setup. Rest bonus applies every rest. {archName} path.</p>
+        <p className="text-xs text-charcoal/55">Start empty, hustle to setup. Rest bonus applies every rest. {bgName} path.</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {FURNITURE.map((f) => {
             const owned = home.furniture.includes(f.id);

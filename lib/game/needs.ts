@@ -1,7 +1,7 @@
-// IbadanLife — 6-needs engine (LagosLife parity, Ibadan reskin).
+// Omo Ibadan — six needs.
 // Needs decay on their own; actions cost in-game minutes; mood gates pay.
 
-export type NeedId = "hunger" | "energy" | "fun" | "social" | "hygiene" | "bladder";
+export type NeedId = "hunger" | "energy" | "fun" | "social" | "hygiene" | "toilet";
 
 export interface NeedDef {
   id: NeedId;
@@ -19,14 +19,14 @@ export const NEEDS: NeedDef[] = [
   { id: "energy", name: "Energy", yoruba: "Agbara", icon: "⚡", decayPerHour: 5, crash: "Exhausted — sleep at home or rest at Agodi." },
   { id: "fun", name: "Fun", yoruba: "Inú dídùn", icon: "🎉", decayPerHour: 4, crash: "Bored — /owambe Fuji night or Agodi Gardens." },
   { id: "social", name: "Social", yoruba: "Ẹgbẹ́", icon: "👥", decayPerHour: 4, crash: "Lonely — gist at Ojude square or call family." },
-  { id: "hygiene", name: "Hygiene", yoruba: "Ìmọ́tótó", icon: "🚿", decayPerHour: 5, crash: "Dirty — shower at home. Lekki-style bathroom not required." },
-  { id: "bladder", name: "Bladder", yoruba: "Àpòòtọ́", icon: "🚻", decayPerHour: 8, crash: "Pressed — use any toilet now or embarrassment -Iwa." },
+  { id: "hygiene", name: "Hygiene", yoruba: "Ìmọ́tótó", icon: "🚿", decayPerHour: 5, crash: "Dirty — shower at home. A bucket and some soap will do." },
+  { id: "toilet", name: "Toilet", yoruba: "Àpòòtọ́", icon: "🚻", decayPerHour: 8, crash: "Pressed — use any toilet now or embarrassment -Iwa." },
 ];
 
 export type Needs = Record<NeedId, number>; // 0..100
 
 export const FULL_NEEDS: Needs = {
-  hunger: 80, energy: 80, fun: 70, social: 70, hygiene: 75, bladder: 85,
+  hunger: 80, energy: 80, fun: 70, social: 70, hygiene: 75, toilet: 85,
 };
 
 /** Advance needs by in-game minutes. Returns crash warnings. */
@@ -44,7 +44,7 @@ export function tickNeeds(n: Needs, minutes: number): { needs: Needs; warnings: 
 /** 0..100 mood score → pay multiplier + label. */
 export function moodOf(n: Needs): { score: number; label: string; payMult: number } {
   const score = Math.round(
-    (n.hunger + n.energy + n.fun + n.social + n.hygiene + n.bladder) / 6
+    (n.hunger + n.energy + n.fun + n.social + n.hygiene + n.toilet) / 6
   );
   if (score >= 75) return { score, label: "😄 Very Happy", payMult: 1.15 };
   if (score >= 55) return { score, label: "🙂 Happy", payMult: 1.0 };

@@ -1,3 +1,5 @@
+import { PRICES } from "./game/prices";
+
 // Real-world walking: GPS distance → steps → rewards.
 // Phones have no web pedometer API, so distance is the source of truth:
 // geolocation.watchPosition tracks outdoor walks, ~1300 steps per km.
@@ -7,7 +9,7 @@ export const STEPS_PER_KM = 1300;
 export const MAX_ACCURACY_M = 30;
 export const MAX_SPEED_MS = 4; // faster than this = vehicle, points dropped
 export const DAILY_STEP_CAP = 20000;
-export const OLA_PER_1000_STEPS = 100;
+export const OLA_PER_1000_STEPS = PRICES.perThousandSteps;
 export const ENERGY_PER_1000_STEPS = 4;
 export const IWA_WALK_BONUS = 3;
 export const IWA_WALK_MIN_STEPS = 2000;

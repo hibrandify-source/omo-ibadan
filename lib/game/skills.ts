@@ -1,4 +1,4 @@
-// IbadanLife — 9 skills (LagosLife parity). XP from actions; levels gate careers.
+// Omo Ibadan — skills. XP from actions; levels gate career promotions.
 
 export type SkillId =
   | "cooking" | "charisma" | "fitness" | "coding" | "music"

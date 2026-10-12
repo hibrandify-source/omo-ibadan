@@ -1,14 +1,8 @@
 "use client";
 
-// Compound exterior — 3 templates shared across the 5 backgrounds:
-// courtyard (Beere old-city) · estate (UI/Poly/Bodija face-me) · gra (Dugbe duplex).
+// Compound exterior templates: courtyard (Omo Iya Lobe's Beere family compound),
+// gra (Alowonle's Old Bodija house), estate (face-me blocks, kept for later moves).
 export type CompoundTemplate = "courtyard" | "estate" | "gra";
-
-export function templateForArch(archId: string): CompoundTemplate {
-  if (archId === "beere-omoluabi") return "courtyard";
-  if (archId === "dugbe-bigboy") return "gra";
-  return "estate";
-}
 
 function Person({ x, y, s, color, skin, fem }: { x: number; y: number; s: number; color: string; skin: string; fem?: boolean }) {
   return (

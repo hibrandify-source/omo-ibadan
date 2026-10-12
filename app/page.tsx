@@ -63,7 +63,7 @@ function Skyline() {
 
 const FAQS = [
   { q: "E free?", a: "Yes. Omo Ibadan is free in your browser — phone or laptop, no download. Optional flex extras arrive in V2." },
-  { q: "Do I need to download anything?", a: "No. Open /play, pick your @name and archetype, enter Ibadan in under a minute." },
+  { q: "Do I need to download anything?", a: "No. Open /play, pick your @name, draw the life you're born into, and enter Ibadan in under a minute." },
   { q: "Which Ibadan areas are inside?", a: "15 nodes at launch: UI/Agbowo, Sango-Poly, Bodija, Mokola, Dugbe/Cocoa House, Mapo/Beere, Oja Oba, Oje, Agodi, Challenge, Molete, Ring Road, Iwo Road/Gbagi, Eleyele/Jericho." },
   { q: "How do Ola and Iwa work?", a: "Ola is wealth — hustle micra, trade market, pass exams. Iwa is character — keep promises, pay rent, send money home, no overload cheating. Titles need both." },
   { q: "Is the naira real money?", a: "No. All naira is virtual, for fun and ranking only. It cannot be withdrawn or cashed out." },
@@ -96,7 +96,7 @@ export default function Landing() {
           <div className="mt-5 flex flex-wrap gap-2 text-xs text-cream/55">
             <span className="rounded-full bg-white/10 px-3 py-1">✓ No download</span>
             <span className="rounded-full bg-white/10 px-3 py-1">✓ 2GB-Android friendly</span>
-            <span className="rounded-full bg-white/10 px-3 py-1">🎁 ₦500 welcome Ola</span>
+            <span className="rounded-full bg-white/10 px-3 py-1">🎲 Born poor or born rich</span>
           </div>
         </div>
       </section>
@@ -104,7 +104,7 @@ export default function Landing() {
       {/* HOW IT WORKS */}
       <section className="mx-auto max-w-5xl px-4 py-12">
         <h2 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Hustle. Chop. Light. Flex. Rank.</h2>
-        <p className="mt-2 max-w-xl text-sm text-charcoal/60">One loop, every day in Ibadan. Five archetypes, fifteen areas, two meters that matter.</p>
+        <p className="mt-2 max-w-xl text-sm text-charcoal/60">One loop, every day in Ibadan. Two lives — Omo Iya Lobe or Alowonle — fifteen areas, two meters that matter.</p>
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           {[
             { e: "🚐", t: "Hustle", d: "Ride or drive micra. Load fast at Iwo Road, dodge VIO, stop inside the box." },

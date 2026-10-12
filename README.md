@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Omo Ibadan
 
-## Getting Started
+A browser life-sim set in Ibadan. Every player is born into one of two lives
+through the birth lottery: **Omo Iya Lobe** (a soup seller's child from Beere)
+or **Alowonle** (born into money in Old Bodija).
 
-First, run the development server:
+## Run it
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev        # http://localhost:3000
+npm test           # game-logic unit tests (Vitest)
+npx playwright test  # end-to-end tests (needs `npx playwright install chromium` once)
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+In development, `/play?birth=alowonle` or `/play?birth=omo-iya-lobe` forces
+the lottery result. This is ignored in production builds.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Where things live
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `lib/game/` — all game logic and content. No React, no rendering.
+  - `prices.ts` — every naira figure in the game. Change prices here only.
+  - `backgrounds.ts` — the two lives: pockets, family, obligations, allowance, connections.
+  - `content.ts` — districts, life events, missions, wardrobe, exam questions.
+  - `needs.ts`, `skills.ts`, `careers.ts`, `traits.ts`, `housing.ts`, `transport.ts`, `places.ts`, `groceries.ts`, `radio.ts`.
+- `lib/world.ts` — the walkable map grid, homes and furniture.
+- `app/play/page.tsx` — the game screen.
+- `components/` — minigames, scenes and panels.
+- `tests/` — unit tests for `lib/game`. `e2e/` — Playwright tests.
+- `supabase/` — optional cloud saves, leaderboards and presence.
 
-## Learn More
+## Saves
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Local saves are versioned (`v: 2`). Older saves load automatically: their
+archetype is mapped to a background and their wallet is scaled ×10 to match
+the recalibrated prices.

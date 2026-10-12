@@ -1,9 +1,14 @@
 import { test, expect, type Page } from "@playwright/test";
-import { EXAM_POOL } from "../lib/game";
+import { EXAM_POOL, PRICES, BACKGROUNDS, naira, type BackgroundId } from "../lib/game";
+
+const OIL = BACKGROUNDS["omo-iya-lobe"];
+const START = OIL.pocket;
 
 interface OmoState {
   started: boolean;
   tab: string;
+  bg: BackgroundId | null;
+  bond: number;
   ola: number;
   iwa: number;
   energy: number;
@@ -22,19 +27,23 @@ const state = (page: Page): Promise<OmoState> =>
 const teleport = (page: Page, x: number, y: number) =>
   page.evaluate(([px, py]) => (window as unknown as { __omo: { teleport: (x: number, y: number) => void } }).__omo.teleport(px, py), [x, y] as [number, number]);
 
-async function startGame(page: Page, name: string) {
-  await page.goto("/play");
+async function startGame(page: Page, name: string, birth: BackgroundId = "omo-iya-lobe") {
+  // ?birth= forces the lottery in dev so tests are deterministic
+  await page.goto(`/play?birth=${birth}`);
   await expect(page.getByText("Create your Ibadan self")).toBeVisible();
-  // Enter is gated on a non-empty @name
+  // Enter is gated on a non-empty @name AND a drawn life
   await expect(page.getByRole("button", { name: /Enter Ibadan/ })).toBeDisabled();
   await page.getByPlaceholder(/Pick @name/).fill(name);
+  await expect(page.getByRole("button", { name: /Enter Ibadan/ })).toBeDisabled();
+  await page.getByRole("button", { name: /Draw my life/ }).click();
+  await expect(page.getByText(BACKGROUNDS[birth].tagline)).toBeVisible();
   await page.getByRole("button", { name: /Enter Ibadan/ }).click();
   await expect(page.getByText(`@${name}`, { exact: false }).first()).toBeVisible();
   const s = await state(page);
   expect(s.started).toBe(true);
-  // ui-student default: 500 welcome + 300 base
-  expect(s.ola).toBe(800);
-  expect(s.iwa).toBe(60);
+  expect(s.bg).toBe(birth);
+  expect(s.ola).toBe(BACKGROUNDS[birth].pocket);
+  expect(s.iwa).toBe(BACKGROUNDS[birth].iwa);
   return s;
 }
 
@@ -50,7 +59,7 @@ test.describe("Omo Ibadan E2E", () => {
 
   test("onboarding gates entry, then HUD shows identity + wallet", async ({ page }) => {
     await startGame(page, "E2EAde");
-    await expect(page.getByText("₦800", { exact: true })).toBeVisible();
+    await expect(page.getByText(naira(START), { exact: true }).first()).toBeVisible();
   });
 
   test("all ten tabs render their content", async ({ page }) => {
@@ -79,11 +88,11 @@ test.describe("Omo Ibadan E2E", () => {
     await page.getByRole("button", { name: "🚐 Hustle" }).click();
     await page.getByRole("button", { name: /Buy Oja Oba/ }).click();
     let s = await state(page);
-    expect(s.ola).toBe(400); // 800 - 400 stock
+    expect(s.ola).toBe(START - PRICES.market.stockBag);
     await page.getByRole("button", { name: /Sell Bodija/ }).click();
     s = await state(page);
-    expect(s.ola).toBe(1000); // 400 + 600 ask (fair: 650 + mood/10)
-    expect(s.iwa).toBe(62);
+    expect(s.ola).toBe(START - PRICES.market.stockBag + PRICES.market.askStart);
+    expect(s.iwa).toBe(OIL.iwa + 2);
     expect(s.npc["Mama Put"]).toBe(1);
     expect(s.feed[0]).toMatch(/Sold Bodija/);
   });
@@ -94,9 +103,9 @@ test.describe("Omo Ibadan E2E", () => {
     await page.getByRole("button", { name: "🧍 Ride" }).click();
     await page.getByRole("button", { name: /Board micra/ }).click();
     // 9s autopilot corridor; generous timeout for CI/dev hiccups
-    await expect.poll(() => state(page).then((s) => s.ola), { timeout: 60_000 }).toBe(650);
+    await expect.poll(() => state(page).then((s) => s.ola), { timeout: 60_000 }).toBe(START - PRICES.transport.micraRideFare);
     const s = await state(page);
-    expect(s.iwa).toBe(61);
+    expect(s.iwa).toBe(OIL.iwa + 1);
     expect(s.npc["Iwo Tout"]).toBe(1);
     expect(s.npc["Sani"]).toBe(1);
     expect(s.feed[0]).toMatch(/Rode micra/);
@@ -108,8 +117,8 @@ test.describe("Omo Ibadan E2E", () => {
     const correct = EXAM_POOL[0].options[EXAM_POOL[0].answer];
     await page.getByRole("button", { name: correct }).click();
     const s = await state(page);
-    expect(s.ola).toBe(1050); // 800 + 250
-    expect(s.iwa).toBe(63);
+    expect(s.ola).toBe(START + PRICES.examReward);
+    expect(s.iwa).toBe(OIL.iwa + 3);
     expect(s.npc["Ada"]).toBe(1);
     expect(s.feed[0]).toMatch(/Exam correct/);
   });
@@ -130,7 +139,7 @@ test.describe("Omo Ibadan E2E", () => {
     await expect(page.getByRole("button", { name: /Amala \+ gbegiri/ })).toBeVisible();
     await page.getByRole("button", { name: /Amala \+ gbegiri/ }).click();
     const s = await state(page);
-    expect(s.ola).toBe(650); // 800 - 150 chop
+    expect(s.ola).toBe(START - PRICES.food.amalaPlate);
     expect(s.feed[0]).toMatch(/Amala \+ gbegiri/);
     await page.getByRole("button", { name: /Step out/ }).first().click();
   });
@@ -169,12 +178,46 @@ test.describe("Omo Ibadan E2E", () => {
     await page.getByRole("button", { name: "🚐 Hustle" }).click();
     await page.getByRole("button", { name: /Buy Oja Oba/ }).click();
     // force a render + save flush before reloading
-    await expect.poll(() => state(page).then((s) => s.ola)).toBe(400);
+    await expect.poll(() => state(page).then((s) => s.ola)).toBe(START - PRICES.market.stockBag);
     await page.reload();
     await expect(page.getByText("@ReloadChap", { exact: false }).first()).toBeVisible();
     const s = await state(page);
     expect(s.started).toBe(true);
-    expect(s.ola).toBe(400);
+    expect(s.bg).toBe("omo-iya-lobe");
+    expect(s.ola).toBe(START - PRICES.market.stockBag);
+  });
+
+  test("Alowonle: rich start, car travel, Daddy's approval panel", async ({ page }) => {
+    const alw = BACKGROUNDS.alowonle;
+    await startGame(page, "BodijaHeir", "alowonle");
+    expect((await state(page)).bond).toBe(alw.bond);
+    await expect(page.getByText(alw.bondLabel).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: "🚗 Car" })).toBeVisible();
+    await page.getByRole("button", { name: /Daddy's site meeting/ }).click();
+    const s = await state(page);
+    expect(s.bond).toBe(alw.bond + 4);
+    await expect(page.getByRole("button", { name: /Family duty done today/ })).toBeDisabled();
+  });
+
+  test("Omo Iya Lobe: help Mama, then pay an obligation", async ({ page }) => {
+    await startGame(page, "BeereChild");
+    await page.getByRole("button", { name: /Help Mama at the stall/ }).click();
+    let s = await state(page);
+    expect(s.ola).toBe(START + 2500);
+    expect(s.bond).toBe(OIL.bond + 4);
+    // Tunde's WAEC fees (₦30,000) is affordable after one market flip + Mama's tip? Not yet — button stays disabled.
+    const waec = OIL.obligations.find((o) => o.id === "waec-fees")!;
+    expect(s.ola).toBeLessThan(waec.amount);
+  });
+
+  test("the lottery can't be rerolled by reloading before entering", async ({ page }) => {
+    await page.goto("/play?birth=alowonle");
+    await page.getByPlaceholder(/Pick @name/).fill("NoReroll");
+    await page.getByRole("button", { name: /Draw my life/ }).click();
+    await expect(page.getByText(BACKGROUNDS.alowonle.tagline)).toBeVisible();
+    await page.goto("/play?birth=omo-iya-lobe");
+    await expect(page.getByText(BACKGROUNDS.alowonle.tagline)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Draw my life/ })).toHaveCount(0);
   });
 
   test("no uncaught errors from load through first hustle", async ({ page }) => {

@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import CompoundView, { templateForArch, type CompoundTemplate } from "./CompoundView";
+import CompoundView, { type CompoundTemplate } from "./CompoundView";
 import { hasWebGL } from "@/lib/webgl";
 
 const Compound3D = dynamic(() => import("./Compound3D"), {
@@ -26,11 +26,11 @@ function Toggle({ mode, setMode }: { mode: "3d" | "2d"; setMode: (m: "3d" | "2d"
 }
 
 export default function CompoundCard({
-  archId,
+  compound,
   greeted,
   onGreet,
 }: {
-  archId: string;
+  compound: CompoundTemplate;
   greeted: boolean;
   onGreet: () => void;
 }) {
@@ -38,12 +38,12 @@ export default function CompoundCard({
   useEffect(() => {
     if (!hasWebGL()) setMode("2d");
   }, []);
-  const template: CompoundTemplate = templateForArch(archId);
+  const template: CompoundTemplate = compound;
   const blurb =
     template === "courtyard"
       ? "Old-city courtyard — well, elders' tree, everybody knows everybody."
       : template === "gra"
-        ? "GRA calm — fence, gate, green grass."
+        ? "Old Bodija calm — fence, gate, gateman, green grass."
         : "Face-me block — corridor gist, shared tap.";
   return (
     <div>

@@ -2,7 +2,9 @@
 
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
-import { ECONOMY } from "@/lib/game";
+import { ECONOMY, PRICES, naira } from "@/lib/game";
+
+const TP = PRICES.transport;
 import { DRIVE_ROUTES } from "@/lib/world";
 import DriveStage, { type HazardKind } from "./DriveStage";
 
@@ -65,7 +67,7 @@ export default function MicraRush({
     setPassengers(0);
     setRunning(true);
     setRunKey((k) => k + 1);
-    setLog(`🧍 Riding ${route.name}. Fare ₦150 on arrival — enjoy the corridors.`);
+    setLog(`🧍 Riding ${route.name}. Fare ${naira(Math.round(TP.micraRideFare * (fareMult ?? 1)))} on arrival — enjoy the corridors.`);
   };
 
   const startDrive = () => {
@@ -81,8 +83,8 @@ export default function MicraRush({
   const onHazard = (kind: HazardKind) => {
     if (mode === "ride") return;
     if (kind === "signal") {
-      onEarn(-100, -2, "🚦 Beat red light! LASTMA wahala -₦100, Iwa -2.");
-      setLog("🚦 You beat red light! -₦100 fine. Iwa -2. Calm down.");
+      onEarn(-TP.trafficFine, -2, `🚦 Beat red light! OYRTMA wahala -${naira(TP.trafficFine)}, Iwa -2.`);
+      setLog(`🚦 You beat red light! -${naira(TP.trafficFine)} fine. Iwa -2. Calm down.`);
       return;
     }
     if (kind === "vio") {
@@ -90,25 +92,25 @@ export default function MicraRush({
         setLog("VIO wave you pass — clean load. 👍");
         return;
       }
-      onEarn(-200, -5, "🚨 VIO catch overload! Fine -₦200, Iwa -5.");
-      setLog("🚨 VIO catch overload for corridor! -₦200, Iwa -5.");
+      onEarn(-TP.vioOverloadFine, -5, `🚨 VIO catch overload! Fine -${naira(TP.vioOverloadFine)}, Iwa -5.`);
+      setLog(`🚨 VIO catch overload for corridor! -${naira(TP.vioOverloadFine)}, Iwa -5.`);
       return;
     }
     if (kind === "pothole") {
-      onEarn(-50, 0, "🕳️ Pothole jam! Repair -₦50.");
-      setLog("🕳️ Pothole for road! -₦50. This corridor wicked.");
+      onEarn(-TP.potholeRepair, 0, `🕳️ Pothole jam! Repair -${naira(TP.potholeRepair)}.`);
+      setLog(`🕳️ Pothole for road! -${naira(TP.potholeRepair)}. This corridor wicked.`);
     } else {
-      onEarn(-100, -2, `💥 ${kind} bash! Settle -₦100, Iwa -2.`);
-      setLog(`💥 ${kind} bash! -₦100. Dodge with ◀ ▶.`);
+      onEarn(-TP.bashSettle, -2, `💥 ${kind} bash! Settle -${naira(TP.bashSettle)}, Iwa -2.`);
+      setLog(`💥 ${kind} bash! -${naira(TP.bashSettle)}. Dodge with ◀ ▶.`);
     }
   };
 
   const onBay = (ok: boolean) => {
     if (mode === "ride") return;
     if (ok) {
-      const fare = passengers * 40;
-      onEarn(fare, 2, `🟢 Clean stop! Collected ₦${fare}, Iwa +2.`);
-      setLog(`🟢 Inside bay! +₦${fare}. Conductor: "O wa o!"`);
+      const fare = passengers * TP.cleanStopPerPassenger;
+      onEarn(fare, 2, `🟢 Clean stop! Collected ${naira(fare)}, Iwa +2.`);
+      setLog(`🟢 Inside bay! +${naira(fare)}. Conductor: "O wa o!"`);
     } else {
       onEarn(0, -1, "Missed the bay — passengers no pay. Iwa -1.");
       setLog("🔴 Missed bay! They no go pay. Watch for yellow boxes.");
@@ -118,9 +120,9 @@ export default function MicraRush({
   const onFinish = () => {
     setRunning(false);
     if (mode === "ride") {
-      const fare = Math.round(150 * (fareMult ?? 1));
-      onEarn(-fare, 1, `Rode micra ${route.short} -₦${fare}. Rested + Iwa +1.`);
-      setLog(`✅ Arrived ${route.endLabel} as passenger. -₦${fare}, Iwa +1. No wahala.`);
+      const fare = Math.round(TP.micraRideFare * (fareMult ?? 1));
+      onEarn(-fare, 1, `Rode micra ${route.short} -${naira(fare)}. Rested + Iwa +1.`);
+      setLog(`✅ Arrived ${route.endLabel} as passenger. -${naira(fare)}, Iwa +1. No wahala.`);
       return;
     }
     const caught = passengers > 4 && Math.random() < 0.25;
@@ -130,8 +132,8 @@ export default function MicraRush({
     } else {
       const fare = passengers * ECONOMY.MICRA_FARE_BASE;
       const full = passengers >= 6 ? " (6/6 FULL LOAD!)" : "";
-      onEarn(fare, passengers > 4 ? -2 : 3, `Micra hustle complete: +₦${fare}${full}`);
-      setLog(`✅ ${route.endLabel}! +₦${fare}. ${passengers > 4 ? "Overload paid but Iwa -2." : "Clean run. Iwa +3."}`);
+      onEarn(fare, passengers > 4 ? -2 : 3, `Micra hustle complete: +${naira(fare)}${full}`);
+      setLog(`✅ ${route.endLabel}! +${naira(fare)}. ${passengers > 4 ? "Overload paid but Iwa -2." : "Clean run. Iwa +3."}`);
     }
     setPassengers(0);
   };
@@ -144,7 +146,7 @@ export default function MicraRush({
           <p className="text-xs text-cream/60">Real Ibadan corridors · top-down · face the road</p>
         </div>
         <div className="flex rounded-full bg-white/10 p-1 text-sm font-bold">
-          <button onClick={() => { if (!running) { setMode("ride"); setLog("Ride mode: autopilot, fare ₦150, no steering."); } }} className={`rounded-full px-4 py-1.5 ${mode === "ride" ? "bg-cream text-charcoal" : ""}`}>🧍 Ride</button>
+          <button onClick={() => { if (!running) { setMode("ride"); setLog(`Ride mode: autopilot, fare ${naira(Math.round(TP.micraRideFare * (fareMult ?? 1)))}, no steering.`); } }} className={`rounded-full px-4 py-1.5 ${mode === "ride" ? "bg-cream text-charcoal" : ""}`}>🧍 Ride</button>
           <button onClick={() => { if (!running) { setMode("drive"); setLog("Hustle mode: you steer lanes + STOP at bays."); } }} className={`rounded-full px-4 py-1.5 ${mode === "drive" ? "bg-mapo text-charcoal" : ""}`}>🛣️ Hustle</button>
         </div>
       </div>
@@ -213,7 +215,7 @@ export default function MicraRush({
 
         {mode === "ride" ? (
           <div className="mt-3 flex gap-2">
-            <button onClick={startRide} disabled={running} className="flex-1 rounded-full bg-cream py-2.5 text-sm font-bold text-charcoal disabled:opacity-40">Board micra — auto ride ₦{Math.round(150 * (fareMult ?? 1))}</button>
+            <button onClick={startRide} disabled={running} className="flex-1 rounded-full bg-cream py-2.5 text-sm font-bold text-charcoal disabled:opacity-40">Board micra — auto ride {naira(Math.round(TP.micraRideFare * (fareMult ?? 1)))}</button>
           </div>
         ) : (
           <div className="mt-3">
