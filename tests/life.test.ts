@@ -197,19 +197,23 @@ describe("people", () => {
 
   it("only lets you ask out someone close, single, and romance-able", () => {
     const close = bondWith(defaultLife(), "Ada", 70, 10);
-    expect(canAskOut(close, "Ada").ok).toBe(true);
-    expect(canAskOut(bondWith(defaultLife(), "Oga Emeka", 90, 10), "Oga Emeka").ok).toBe(false);
-    expect(canAskOut(bondWith(defaultLife(), "Ada", 30, 10), "Ada").ok).toBe(false);
-    const yes = askOut(close, "Ada", 11, 60, fixed(0)).life;
+    expect(canAskOut(close, "Ada", "okunrin").ok).toBe(true);
+    expect(canAskOut(bondWith(defaultLife(), "Oga Emeka", 90, 10), "Oga Emeka", "obinrin").ok).toBe(false);
+    expect(canAskOut(bondWith(defaultLife(), "Ada", 30, 10), "Ada", "okunrin").ok).toBe(false);
+    const yes = askOut(close, "Ada", "okunrin", 11, 60, fixed(0)).life;
     expect(partnerOf(yes)).toBe("Ada");
-    expect(canAskOut(bondWith(yes, "Kemi", 80, 12), "Kemi").ok).toBe(false); // already with someone
-    const no = askOut(close, "Ada", 11, 60, fixed(0.99)).life;
+    expect(canAskOut(bondWith(yes, "Kemi", 80, 12), "Kemi", "okunrin").ok).toBe(false); // already with someone
+    // romance is opposite-gender only
+    expect(canAskOut(close, "Ada", "obinrin").ok).toBe(false);
+    expect(canAskOut(bondWith(defaultLife(), "Tobi", 70, 10), "Tobi", "okunrin").ok).toBe(false);
+    expect(partnerOf(askOut(close, "Ada", "obinrin", 11, 60, fixed(0)).life)).toBeNull();
+    const no = askOut(close, "Ada", "okunrin", 11, 60, fixed(0.99)).life;
     expect(partnerOf(no)).toBeNull();
     expect(relOf(no, "Ada").bond).toBe(62);
   });
 
   it("goes dating → engaged → married, with the costs", () => {
-    let life = askOut(bondWith(defaultLife(), "Femi", 90, 10), "Femi", 10, 60, fixed(0)).life;
+    let life = askOut(bondWith(defaultLife(), "Femi", 90, 10), "Femi", "obinrin", 10, 60, fixed(0)).life;
     expect(propose(life, "Femi", 50, 1e7).cost).toBe(0); // too soon
     const p = propose(life, "Femi", 10 + LOVE.proposeDays, 1e7);
     expect(p.cost).toBe(LOVE.introduction);
@@ -222,7 +226,7 @@ describe("people", () => {
   });
 
   it("lets partners drift when you disappear, and warns you", () => {
-    let life = askOut(bondWith(withEdu({ stage: "dropped" }), "Kemi", 60, 10), "Kemi", 10, 60, fixed(0)).life;
+    let life = askOut(bondWith(withEdu({ stage: "dropped" }), "Kemi", 60, 10), "Kemi", "okunrin", 10, 60, fixed(0)).life;
     life = bondWith(life, "Kemi", -40, 10); // bond 20, last seen day 10
     let d = 11;
     for (; d < 40; d++) life = lifeDay(life, d, { examPass: 0, brain: 0 }).life;
@@ -263,7 +267,7 @@ describe("season skips", () => {
   });
 
   it("grows a partner's bond on a love season and shrinks it on a work season", () => {
-    const life = askOut(bondWith(defaultLife(), "Tobi", 70, 10), "Tobi", 10, 60, fixed(0)).life;
+    const life = askOut(bondWith(defaultLife(), "Tobi", 70, 10), "Tobi", "obinrin", 10, 60, fixed(0)).life;
     const love = skipSeason(input(withEdu({ stage: "dropped" }, life), 30, "love"));
     const work = skipSeason(input(withEdu({ stage: "dropped" }, life), 30, "work"));
     expect(relOf(love.life, "Tobi").bond).toBeGreaterThan(70);
@@ -275,7 +279,7 @@ describe("legacy", () => {
   it("scores a full life above an empty one and sings the right oriki", () => {
     const base = { day: 3700, bg: oil, ola: 20_000, iwa: 40, bond: 30, title: 0, titleName: "Omo Adugbo", careerName: null, careerLevel: 0, homeTier: "room", visits: 3, life: defaultLife() };
     let full = withEdu({ stage: "served", school: "ui", grade: "Second Class Upper" });
-    full = askOut(bondWith(full, "Ada", 80, 10), "Ada", 10, 70, fixed(0)).life;
+    full = askOut(bondWith(full, "Ada", 80, 10), "Ada", "okunrin", 10, 70, fixed(0)).life;
     full = { ...full, rel: { ...full.rel, Ada: { ...full.rel.Ada, stage: "married" } }, children: 2, flags: ["kiosk"] };
     const rich = legacyReport({ ...base, ola: 12_000_000, iwa: 80, bond: 80, title: 2, careerName: "Banker", careerLevel: 4, homeTier: "duplex", visits: 27, life: full });
     const poor = legacyReport(base);
@@ -297,7 +301,7 @@ describe("life in the save", () => {
   });
 
   it("round-trips through migrateSave", () => {
-    const life = askOut(bondWith(withEdu({ stage: "student", school: "poly", score: 210 }), "Tobi", 70, 10), "Tobi", 10, 60, fixed(0)).life;
+    const life = askOut(bondWith(withEdu({ stage: "student", school: "poly", score: 210 }), "Tobi", 70, 10), "Tobi", "obinrin", 10, 60, fixed(0)).life;
     const s = migrateSave({ ...defaultSave(), life })!;
     expect(s.life).toEqual(life);
   });

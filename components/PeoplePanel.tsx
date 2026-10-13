@@ -2,11 +2,12 @@
 
 // The people whose lives run alongside yours: friendship, love, marriage.
 
-import { LOVE, REL_LABEL, STORY_PEOPLE, naira, type BackgroundId, type LifeState } from "@/lib/game";
+import { LOVE, REL_LABEL, STORY_PEOPLE, naira, type BackgroundId, type Gender, type LifeState } from "@/lib/game";
 import { canAskOut, canPropose, canWed, partnerOf, relOf, weddingCost } from "@/lib/engine/life";
 
 export default function PeoplePanel({
   life,
+  gender,
   bgId,
   bond,
   ola,
@@ -19,6 +20,7 @@ export default function PeoplePanel({
   onWed,
 }: {
   life: LifeState;
+  gender: Gender;
   bgId: BackgroundId;
   bond: number;
   ola: number;
@@ -44,7 +46,8 @@ export default function PeoplePanel({
           const r = relOf(life, p.id);
           const here = zone === p.zone;
           const known = r.bond > 0;
-          const ask = canAskOut(life, p.id);
+          const ask = canAskOut(life, p.id, gender);
+          const datable = p.romance && p.gender !== gender;
           const prop = canPropose(life, p.id, day, ola);
           const marry = canWed(life, p.id, ola, bgId, bond);
           const romantic = r.stage === "dating" || r.stage === "engaged" || r.stage === "married";
@@ -73,7 +76,7 @@ export default function PeoplePanel({
                   >
                     {p.hangout.label}{p.hangout.cost ? ` · ${naira(p.hangout.cost)}` : ""}
                   </button>
-                  {p.romance && !romantic && !partner && (
+                  {datable && !romantic && !partner && (
                     <button
                       onClick={() => onAskOut(p.id)}
                       disabled={!ask.ok}
@@ -105,7 +108,7 @@ export default function PeoplePanel({
                   )}
                 </div>
               )}
-              {known && p.romance && !romantic && !partner && !ask.ok && <p className="mt-1 text-[10px] text-charcoal/45">{ask.why}</p>}
+              {known && datable && !romantic && !partner && !ask.ok && <p className="mt-1 text-[10px] text-charcoal/45">{ask.why}</p>}
               {r.stage === "dating" && !prop.ok && <p className="mt-1 text-[10px] text-charcoal/45">{prop.why}</p>}
               {r.stage === "engaged" && !marry.ok && <p className="mt-1 text-[10px] text-charcoal/45">{marry.why}</p>}
             </div>

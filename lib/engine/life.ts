@@ -15,6 +15,7 @@ import {
   upkeepFor,
   type Background,
   type BackgroundId,
+  type Gender,
   type LifeEvent,
   type LifeState,
   type Rel,
@@ -98,10 +99,11 @@ export function hangOut(life: LifeState, id: string, day: number): { life: LifeS
 
 export type LoveCheck = { ok: true } | { ok: false; why: string };
 
-export function canAskOut(life: LifeState, id: string): LoveCheck {
+/** Romance is between a man and a woman, as in Ibadan custom and Nigerian law. */
+export function canAskOut(life: LifeState, id: string, gender: Gender): LoveCheck {
   const p = personById(id);
   const r = relOf(life, id);
-  if (!p?.romance) return { ok: false, why: "Not that kind of relationship." };
+  if (!p?.romance || p.gender === gender) return { ok: false, why: "Not that kind of relationship." };
   if (partnerOf(life)) return { ok: false, why: "You're already with someone." };
   if (ROMANTIC.includes(r.stage)) return { ok: false, why: "You're already together." };
   if (r.bond < LOVE.askOutBond) return { ok: false, why: `Get closer first (bond ${r.bond}/${LOVE.askOutBond}).` };
@@ -109,8 +111,8 @@ export function canAskOut(life: LifeState, id: string): LoveCheck {
 }
 
 /** Ask someone out. Bond and Iwa both help; a no costs some bond. */
-export function askOut(life: LifeState, id: string, day: number, iwa: number, rand: () => number = Math.random): { life: LifeState; yes: boolean } {
-  if (!canAskOut(life, id).ok) return { life, yes: false };
+export function askOut(life: LifeState, id: string, gender: Gender, day: number, iwa: number, rand: () => number = Math.random): { life: LifeState; yes: boolean } {
+  if (!canAskOut(life, id, gender).ok) return { life, yes: false };
   const r = relOf(life, id);
   const chance = clamp(0.45 + (r.bond - LOVE.askOutBond) / 50 + (iwa - 50) / 200, 0.15, 0.95);
   if (rand() < chance) {

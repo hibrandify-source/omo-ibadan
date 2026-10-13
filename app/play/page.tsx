@@ -1170,7 +1170,7 @@ export default function Home() {
   };
 
   const askOutPerson = (id: string) => {
-    const r = askOut(life, id, day, iwa);
+    const r = askOut(life, id, gender, day, iwa);
     setLife(r.life);
     if (r.yes) {
       jot(`Day ${day}: started dating ${id}.`);
@@ -2336,6 +2336,7 @@ export default function Home() {
             />
             <PeoplePanel
               life={life}
+              gender={gender}
               bgId={bg.id}
               bond={bond}
               ola={ola}
