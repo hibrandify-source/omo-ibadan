@@ -114,7 +114,7 @@ export const BACKGROUNDS: Record<BackgroundId, Background> = {
     energy: 80,
     bond: 55,
     bondLabel: "Daddy's approval",
-    homeZone: "bodija",
+    homeZone: "old-bodija",
     homeLabel: "Family house, Old Bodija",
     compound: "gra",
     outfit: "#3b5bd6",

@@ -335,7 +335,7 @@ export default function CityMap({
 
   return (
     <div>
-      <div ref={wrapRef} className="relative h-[420px] overflow-hidden rounded-2xl ring-1 ring-roof/20 sm:h-[480px]">
+      <div ref={wrapRef} className="relative h-[min(55svh,460px)] min-h-[300px] overflow-hidden rounded-2xl ring-1 ring-roof/20 sm:h-[480px]">
         <canvas ref={cvRef} className="block h-full w-full touch-none" aria-label="Map of Ibadan" role="img" />
         <div className="absolute right-2 top-2 flex flex-col gap-1.5">
           {zoomBtn(1.4, "+", "Zoom in")}

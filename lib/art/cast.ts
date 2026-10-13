@@ -79,6 +79,23 @@ export const CAST: Record<string, PersonSpec> = {
     outfit: { kind: "gown", dress: FABRICS.waxGold },
     shoes: "#c9a24a", carry: "bag",
   },
+  gatemanMusa: {
+    skin: S[2], height: 1.74, build: 0.92, age: "adult", hair: "lowcut",
+    headwear: { kind: "cap", fabric: { base: "#e9e3d6", a: "#e9e3d6", b: "#e9e3d6", motif: "plain" } },
+    outfit: { kind: "buba-sokoto", top: { base: "#d9cfb8", a: "#d9cfb8", b: "#d9cfb8", motif: "plain" }, bottom: { base: "#d9cfb8", a: "#d9cfb8", b: "#d9cfb8", motif: "plain" } },
+    shoes: PAL.slipper, carry: null,
+  },
+  mummy: {
+    skin: S[4], height: 1.68, build: 1.15, age: "adult", hair: "lowcut",
+    headwear: { kind: "headtie", fabric: FABRICS.asoOkeWine },
+    outfit: { kind: "iro-buba", buba: FABRICS.laceWhite, iro: FABRICS.asoOkeWine },
+    shoes: "#c9a24a", carry: null,
+  },
+  cousinKunle: {
+    skin: S[3], height: 1.77, build: 1.0, age: "adult", hair: "lowcut", headwear: null,
+    outfit: { kind: "tee-jeans", tee: "#c9322a", jeans: "#2d3d5a" },
+    shoes: "#f2efe8", carry: null,
+  },
   mechanic: {
     skin: S[0], height: 1.75, build: 1.1, age: "adult", hair: "bald", headwear: null,
     outfit: { kind: "shirt-trousers", shirt: "#5b6b3a", trousers: "#3a3530" },

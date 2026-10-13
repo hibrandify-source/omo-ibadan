@@ -2,6 +2,7 @@
 
 import { G, K, alpha, groundShadow, line, oval, rng, rrect, shade, type Ctx } from "./core";
 import { PAL } from "./palette";
+import { drawBuilding } from "./buildings";
 
 /** Three-stone firewood fire with a big soup pot and a smaller one. */
 export function drawPots(ctx: Ctx, t = 0) {
@@ -64,6 +65,79 @@ export function drawDrum(ctx: Ctx, color: string) {
   oval(ctx, 0, -h, 0.14, 0.14 * G * 0.6);
   ctx.fillStyle = shade(color, -0.45);
   ctx.fill();
+}
+
+/** Gateman's post: a small plastered hut with a zinc roof and a barred window. Origin centre. */
+export function drawBooth(ctx: Ctx) {
+  ctx.save();
+  ctx.translate(-0.9, -0.8 * G);
+  drawBuilding(ctx, {
+    w: 1.8, d: 1.6, h: 2.4, roof: "hip", rise: 0.5, wall: PAL.plaster[3], wallKind: "plaster", rust: 0.6, seed: 77,
+    openings: [{ x: 0.4, kind: "window", width: 0.9 }],
+  });
+  ctx.restore();
+}
+
+/** Big soundproof house generator in its canopy. Origin centre. */
+export function drawBigGen(ctx: Ctx, running = false, t = 0) {
+  groundShadow(ctx, 0.2, 0.1, 1.6, 0.7, 0.28);
+  const w = 2.6, d = 1.1 * G, h = 1.4 * K;
+  ctx.fillStyle = "#2f5e8a";
+  ctx.fillRect(-w / 2, d / 2 - h, w, h);
+  rrect(ctx, -w / 2, -d / 2 - h, w, d, 0.05);
+  ctx.fillStyle = "#3a6f9e";
+  ctx.fill();
+  for (let i = 0; i < 6; i++) line(ctx, -w / 2 + 0.3 + i * 0.12, d / 2 - h + 0.25, -w / 2 + 0.3 + i * 0.12, d / 2 - 0.25, "#1f3f5e", 0.04);
+  ctx.strokeStyle = "#1b3550";
+  ctx.lineWidth = 0.03;
+  ctx.strokeRect(-w / 2, d / 2 - h, w, h);
+  if (running) {
+    for (let i = 0; i < 3; i++) {
+      const k = (t * 0.6 + i / 3) % 1;
+      oval(ctx, w / 2 - 0.2 + k * 0.3, -d / 2 - h - k * 1.2, 0.12 + k * 0.2, 0.08 + k * 0.12);
+      ctx.fillStyle = `rgba(80,80,80,${0.3 * (1 - k)})`;
+      ctx.fill();
+    }
+  }
+}
+
+/** Clipped ixora hedge running along x from the origin. */
+export function drawHedge(ctx: Ctx, w: number, seed = 3) {
+  const r = rng(seed);
+  const h = 0.9 * K;
+  ctx.fillStyle = "rgba(20,12,6,0.2)";
+  ctx.fillRect(0.1, -0.1, w, 0.35);
+  rrect(ctx, 0, -h - 0.35 * G, w, h + 0.35 * G, 0.15);
+  ctx.fillStyle = PAL.treeDark;
+  ctx.fill();
+  for (let x = 0.1; x < w; x += 0.18) {
+    oval(ctx, x, -h - 0.2 * G + (r() - 0.5) * 0.1, 0.13, 0.1);
+    ctx.fillStyle = r() < 0.5 ? PAL.tree : PAL.treeLight;
+    ctx.fill();
+    if (r() < 0.35) {
+      oval(ctx, x + 0.05, -h - 0.25 * G, 0.05, 0.04);
+      ctx.fillStyle = "#d8322a"; // ixora flowers
+      ctx.fill();
+    }
+  }
+}
+
+/** A raised flower bed with a painted kerb. Origin at its west end. */
+export function drawFlowers(ctx: Ctx, w: number, seed = 9) {
+  const r = rng(seed);
+  ctx.fillStyle = "#e9e3d6";
+  ctx.fillRect(0, -0.6 * G - 0.12, w, 0.12);
+  ctx.fillStyle = PAL.lateriteDark;
+  ctx.fillRect(0, -0.6 * G, w, 0.6 * G);
+  for (let x = 0.15; x < w; x += 0.3) {
+    const cy = -0.3 * G - 0.15 + (r() - 0.5) * 0.15;
+    oval(ctx, x, cy, 0.16, 0.12);
+    ctx.fillStyle = PAL.tree;
+    ctx.fill();
+    oval(ctx, x + 0.04, cy - 0.08, 0.06, 0.05);
+    ctx.fillStyle = ["#e9b22a", "#d8322a", "#f2efe6", "#b0479a"][Math.floor(r() * 4)];
+    ctx.fill();
+  }
 }
 
 /** A few chickens pecking around. */

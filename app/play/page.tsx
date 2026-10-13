@@ -232,6 +232,8 @@ export default function Home() {
   // 4A shell: quality + settings menu
   const [saver, setSaver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // phones: the "More" sheet of the bottom tab bar
+  const [moreOpen, setMoreOpen] = useState(false);
   // backend: accounts, cloud, presence (all degrade gracefully offline)
   const [authUser, setAuthUser] = useState<{ id: string; email: string } | null>(null);
   const [cloudReady, setCloudReady] = useState(false);
@@ -608,6 +610,8 @@ export default function Home() {
     const g = GENDERS.find((x) => x.id === gender)!;
     jot(`Day 1: born ${bg.name}. ${bg.homeLabel}.`);
     push(`Ẹ káàbọ̀ sí Ìbàdàn, ${username}! ${g.yoruba} · ${bg.name}. You start with ${naira(pocket)}.${extra}`);
+    // the join form is long on phones; land at the top, in your street
+    window.scrollTo({ top: 0 });
   };
 
   const earn = (dOla: number, dIwa: number, msg: string, tag?: "micra" | "trade" | "exam" | "fullload", minutes?: number) => {
@@ -686,7 +690,8 @@ export default function Home() {
   };
 
   // once a day: Omo Iya Lobe helps at Mama's stall; Alowonle shows face at Daddy's office
-  const familyDuty = () => {
+  // `atHome`: done in the evening at the compound (pot / veranda) instead of at the stall or site
+  const familyDuty = (atHome = false) => {
     if (lastFamilyDay === day) {
       push("You've already done your family duty today.");
       return;
@@ -705,12 +710,16 @@ export default function Home() {
       setIwa((v) => Math.min(100, v + 2));
       meet("Mama Bisi");
       addSkill("cooking", 10);
-      push(`🍲 You helped Mama sell at Oja'ba. She pressed ${naira(tip)} into your hand. Mama's trust +4.`);
+      push(atHome
+        ? `🍲 You stirred the gbegiri with Mama for tomorrow's market. She pressed ${naira(tip)} into your hand. Mama's trust +4.`
+        : `🍲 You helped Mama sell at Oja'ba. She pressed ${naira(tip)} into your hand. Mama's trust +4.`);
     } else {
       setNeeds((n) => ({ ...n, fun: Math.max(0, n.fun - 10) }));
       meet("Chief Adeyemi");
       addSkill("charisma", 10);
-      push("👔 You sat through Daddy's site meeting on Ring Road and took notes. Approval +4, fun −10.");
+      push(atHome
+        ? "👔 You went through the day's site accounts with Daddy on the veranda. Approval +4, fun −10."
+        : "👔 You sat through Daddy's site meeting on Ring Road and took notes. Approval +4, fun −10.");
     }
   };
 
@@ -859,9 +868,24 @@ export default function Home() {
 
   // ---- walkable scene actions ----
   const sceneDoor = (id: string) => {
-    if (id === "mama-room") {
+    if (id === "mama-room" || id === "house") {
       setTab("ile");
       setIleView("room");
+      return;
+    }
+    if (id === "daddy-veranda") {
+      if (partOfDay(minuteRef.current) !== "evening") {
+        push("👔 The veranda is empty. Daddy is at a site on Ring Road until evening.");
+        return;
+      }
+      familyDuty(true);
+      return;
+    }
+    if (id === "car") {
+      if (!bg.hasCar) return;
+      setTravelMode("car");
+      document.getElementById("city-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      push("🚗 Musa opens the gate. Pick where you're driving on the map; fuel is already paid for today.");
       return;
     }
     if (id === "mama-pot") {
@@ -869,7 +893,7 @@ export default function Home() {
         push("🍲 The pot is cold. Mama is at her Oja'ba stall until evening; Oja'ba is a short walk away.");
         return;
       }
-      familyDuty();
+      familyDuty(true);
       return;
     }
     if (id === "shop") {
@@ -1307,10 +1331,10 @@ export default function Home() {
   const q = examQuestion(qi);
 
   return (
-    <main className="min-h-screen bg-cream bg-[radial-gradient(ellipse_at_top,#F5D9A8_0%,#FAF6F0_50%)]">
-      <div className="mx-auto max-w-6xl px-4 py-5 sm:py-8">
-        {/* Breadcrumb */}
-        <nav className="mb-3 flex items-center justify-between text-xs font-semibold text-charcoal/55">
+    <main className="min-h-screen bg-cream bg-[radial-gradient(ellipse_at_top,#F5D9A8_0%,#FAF6F0_50%)] pb-[calc(5rem+env(safe-area-inset-bottom))] sm:pb-0">
+      <div className="mx-auto max-w-6xl px-3 py-2 sm:px-4 sm:py-8">
+        {/* Breadcrumb (wide screens; phones get a home link in the top bar) */}
+        <nav className="mb-3 hidden items-center justify-between text-xs font-semibold text-charcoal/55 sm:flex">
           <span>
             <a href="/" className="hover:text-roof">Home</a>
             <span className="mx-1.5 opacity-50">/</span>
@@ -1321,30 +1345,31 @@ export default function Home() {
           <a href="/how-to-play" className="hover:text-roof">How to play →</a>
         </nav>
         {/* HUD command bar */}
-        <div className="sticky top-3 z-20 rounded-3xl bg-charcoal/95 p-4 text-cream shadow-[0_20px_50px_-16px_rgba(28,25,23,0.55)] ring-1 ring-white/10 backdrop-blur">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <div className="font-display text-base font-extrabold tracking-tight">@{username} <span className="text-mapo">· {title}</span></div>
-              <div className="text-xs text-cream/60">{nodeName} · {bg.name} · {gender === "okunrin" ? "Ọkùnrin" : "Obìnrin"} · Age {ageOn(day)}</div>
+        <div className="sticky top-0 z-20 -mx-3 rounded-b-2xl bg-charcoal/95 px-3 pb-2.5 pt-2 text-cream shadow-[0_12px_30px_-16px_rgba(28,25,23,0.6)] ring-1 ring-white/10 backdrop-blur sm:top-3 sm:mx-0 sm:rounded-3xl sm:p-4 sm:shadow-[0_20px_50px_-16px_rgba(28,25,23,0.55)]">
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+            <div className="min-w-0">
+              <div className="font-display truncate text-[15px] font-extrabold tracking-tight sm:text-base"><a href="/" aria-label="Home" className="mr-1.5 text-cream/50 sm:hidden">←</a>@{username} <span className="text-mapo">· {title}</span></div>
+              <div className="hidden text-xs text-cream/60 sm:block">{nodeName} · {bg.name} · {gender === "okunrin" ? "Ọkùnrin" : "Obìnrin"} · Age {ageOn(day)}</div>
+              <div className="text-[11px] text-cream/60 sm:hidden">{nodeName} · Age {ageOn(day)}</div>
               <div className="mt-0.5 text-xs font-bold text-mapo" aria-label="Time">{{ morning: "🌅", afternoon: "☀️", evening: "🌇", night: "🌙" }[partOfDay(minute)]} {formatTime(minute)} · {calendarFor(day).weekday} {calendarFor(day).date} {calendarFor(day).month}</div>
             </div>
-            <div className="flex flex-wrap items-center gap-1.5 text-[13px]">
-              <span className="rounded-full bg-gradient-to-r from-mapo to-[#f5c04a] px-3 py-1 font-extrabold text-charcoal">{naira(ola)}</span>
-              <span className="rounded-full bg-agodi px-3 py-1 font-bold text-white">🕊 {iwa}</span>
-              <span className="rounded-full bg-white/15 px-3 py-1 font-semibold">⚡{energy}</span>
-              <span className="rounded-full bg-white/15 px-3 py-1 font-semibold" title="Mood: from your energy + Iwa">{mood}</span>
+            <div className="-mx-1 flex w-full items-center gap-1.5 overflow-x-auto px-1 text-[13px] [scrollbar-width:none] sm:mx-0 sm:w-auto sm:flex-wrap sm:overflow-visible sm:px-0">
+              <span className="shrink-0 rounded-full bg-gradient-to-r from-mapo to-[#f5c04a] px-3 py-1 font-extrabold text-charcoal">{naira(ola)}</span>
+              <span className="shrink-0 rounded-full bg-agodi px-3 py-1 font-bold text-white">🕊 {iwa}</span>
+              <span className="shrink-0 rounded-full bg-white/15 px-3 py-1 font-semibold">⚡{energy}</span>
+              <span className="shrink-0 whitespace-nowrap rounded-full bg-white/15 px-3 py-1 font-semibold" title="Mood: from your energy and needs">{mood}</span>
               {onlineTotal > 0 && (
-                <span className="rounded-full bg-white/15 px-3 py-1 font-semibold" title="Real players online now">🟢 {onlineTotal >= 1000 ? `${(onlineTotal / 1000).toFixed(1)}k` : onlineTotal} online</span>
+                <span className="shrink-0 whitespace-nowrap rounded-full bg-white/15 px-3 py-1 font-semibold" title="Real players online now">🟢 {onlineTotal >= 1000 ? `${(onlineTotal / 1000).toFixed(1)}k` : onlineTotal} online</span>
               )}
               {walkLive.active && (
                 <button onClick={() => setTab("rin")} className="rounded-full bg-agodi px-3 py-1 font-bold text-white" title="Walk in progress — tap to open">
                   🚶 {walkLive.steps.toLocaleString()} steps
                 </button>
               )}
-              <div className="relative">
+              <div className="shrink-0 sm:relative">
                 <button onClick={() => setMenuOpen((o) => !o)} aria-label="Settings" className="rounded-full bg-white/15 px-3 py-1 font-semibold hover:bg-white/25">⚙️</button>
                 {menuOpen && (
-                  <div className="absolute right-0 top-9 z-30 w-56 rounded-2xl bg-cream p-3 text-charcoal shadow-2xl ring-1 ring-roof/20">
+                  <div className="fixed inset-x-3 top-24 z-40 rounded-2xl bg-cream p-3 text-charcoal shadow-2xl ring-1 ring-roof/20 sm:absolute sm:inset-x-auto sm:right-0 sm:top-9 sm:w-56">
                     <div className="px-1 pb-2 text-[11px] font-extrabold tracking-widest text-charcoal/50">SETTINGS</div>
                     <button onClick={() => setSaver((s) => !s)} className="flex w-full items-center justify-between rounded-xl bg-white px-3 py-2.5 text-left text-sm font-bold ring-1 ring-roof/10">
                       <span>📶 Quality</span>
@@ -1364,7 +1389,7 @@ export default function Home() {
               </div>
             </div>
           </div>
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          <div className="mt-3 hidden flex-wrap gap-1.5 sm:flex">
             {(["map", "hustle", "exam", "story", "ile", "ra", "owambe", "rin", "fonu", "ojude"] as Tab[]).map((t) => (
               <button key={t} onClick={() => setTab(t)} className={`rounded-full px-4 py-1.5 text-[13px] font-bold transition ${tab === t ? "bg-cream text-charcoal shadow" : "bg-white/10 text-cream/75 hover:bg-white/15"}`}>
                 {t === "map" && "🗺 Map"}{t === "hustle" && "🚐 Hustle"}{t === "exam" && "📝 Exam"}{t === "story" && "📖 Itan"}{t === "ile" && "🏠 Ilé"}{t === "ra" && "🛍️ Rà"}{t === "owambe" && "💃 Owambe"}{t === "rin" && "🚶 Rìn"}{t === "fonu" && "📱 Fọ́nu"}{t === "ojude" && "📣 Ojude"}
@@ -1374,6 +1399,53 @@ export default function Home() {
             <button onClick={goHome} className="rounded-full bg-white/10 px-4 py-1.5 text-[13px] font-semibold hover:bg-white/15">🏠 Go home</button>
           </div>
         </div>
+
+        {/* Phones: bottom tab bar within thumb reach, the rest under "More" */}
+        <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-white/10 bg-charcoal/95 pb-[env(safe-area-inset-bottom)] text-cream backdrop-blur sm:hidden" aria-label="Game tabs">
+          <div className="grid grid-cols-5">
+            {([["map", "🗺", "Map"], ["hustle", "🚐", "Hustle"], ["ile", "🏠", "Ilé"], ["story", "📖", "Itan"]] as [Tab, string, string][]).map(([t, icon, label]) => (
+              <button
+                key={t}
+                aria-label={`${icon} ${label}`}
+                onClick={() => { setTab(t); setMoreOpen(false); window.scrollTo({ top: 0 }); }}
+                className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-bold ${tab === t && !moreOpen ? "text-mapo" : "text-cream/70"}`}
+              >
+                <span className="text-xl leading-none">{icon}</span>
+                {label}
+              </button>
+            ))}
+            <button
+              onClick={() => setMoreOpen((o) => !o)}
+              aria-label="More"
+              aria-expanded={moreOpen}
+              className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-bold ${moreOpen || ["exam", "ra", "owambe", "rin", "fonu", "ojude"].includes(tab) ? "text-mapo" : "text-cream/70"}`}
+            >
+              <span className="text-xl leading-none">☰</span>
+              More
+            </button>
+          </div>
+        </nav>
+        {moreOpen && (
+          <div className="fixed inset-0 z-20 bg-charcoal/50 sm:hidden" onClick={() => setMoreOpen(false)}>
+            <div className="absolute inset-x-0 bottom-[calc(3.75rem+env(safe-area-inset-bottom))] rounded-t-3xl bg-cream p-4 pb-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="grid grid-cols-3 gap-2">
+                {([["exam", "📝 Exam"], ["ra", "🛍️ Rà"], ["owambe", "💃 Owambe"], ["rin", "🚶 Rìn"], ["fonu", "📱 Fọ́nu"], ["ojude", "📣 Ojude"]] as [Tab, string][]).map(([t, label]) => (
+                  <button
+                    key={t}
+                    onClick={() => { setTab(t); setMoreOpen(false); window.scrollTo({ top: 0 }); }}
+                    className={`rounded-2xl px-2 py-3 text-sm font-bold ring-1 ${tab === t ? "bg-charcoal text-cream ring-charcoal" : "bg-white ring-roof/15"}`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                <button onClick={() => { chop(); setMoreOpen(false); }} className="rounded-2xl bg-white px-3 py-3 text-sm font-bold ring-1 ring-roof/15">🍲 Chop {naira(ECONOMY.CHOP_COST)}</button>
+                <button onClick={() => { goHome(); setMoreOpen(false); }} className="rounded-2xl bg-white px-3 py-3 text-sm font-bold ring-1 ring-roof/15">🏠 Go home</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Door chip (walked up to a door) wins over the zone chip */}
         {nearDoor ? (
@@ -2077,7 +2149,7 @@ export default function Home() {
                 </p>
               )}
               <button
-                onClick={familyDuty}
+                onClick={() => familyDuty()}
                 disabled={lastFamilyDay === day}
                 className="mt-2 w-full rounded-full bg-charcoal py-2 text-xs font-bold text-cream disabled:opacity-40"
               >

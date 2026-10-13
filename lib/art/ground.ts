@@ -182,6 +182,42 @@ function gutterFlat(ctx: Ctx, x0: number, x1: number, y: number, seed: number, c
   }
 }
 
+/** Interlocking paving stones, the rich compound's floor. */
+export function drawPaving(ctx: Ctx, x: number, y: number, w: number, h: number, seed: number) {
+  flat(ctx, () => {
+    const r = rng(seed);
+    ctx.fillStyle = "#9d958a";
+    ctx.fillRect(x, y, w, h);
+    for (let row = 0, yy = y; yy < y + h; yy += 0.22, row++) {
+      for (let xx = x + (row % 2 ? 0.11 : 0); xx < x + w; xx += 0.22) {
+        ctx.fillStyle = r() < 0.15 ? "#8a8278" : r() < 0.5 ? "#a8a094" : "#b1a99c";
+        ctx.fillRect(xx + 0.015, yy + 0.015, 0.19, 0.19);
+      }
+    }
+    ctx.strokeStyle = "#7d766c";
+    ctx.lineWidth = 0.08;
+    ctx.strokeRect(x, y, w, h);
+  });
+}
+
+/** Mown lawn (carpet grass), slightly patchy. */
+export function drawLawn(ctx: Ctx, x: number, y: number, w: number, h: number, seed: number) {
+  flat(ctx, () => {
+    const r = rng(seed);
+    ctx.fillStyle = "#6f8f3e";
+    ctx.fillRect(x, y, w, h);
+    for (let i = 0; i < w * h * 1.5; i++) {
+      ctx.fillStyle = r() < 0.5 ? "rgba(140,170,80,0.35)" : "rgba(70,95,40,0.35)";
+      ctx.fillRect(x + r() * w, y + r() * h, 0.08, 0.05);
+    }
+    for (let i = 0; i < (w * h) / 30; i++) {
+      oval(ctx, x + r() * w, y + r() * h, 0.6 + r(), 0.3 + r() * 0.5);
+      ctx.fillStyle = "rgba(170,150,80,0.25)"; // dry patches
+      ctx.fill();
+    }
+  });
+}
+
 /** Faded yellow-and-black speed bump across a road at x. */
 export function drawSpeedBump(ctx: Ctx, x: number, y0: number, y1: number) {
   flat(ctx, () => {

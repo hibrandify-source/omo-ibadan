@@ -8,12 +8,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { G, K, TILT_STREET, setTilt, type Ctx, type Dir } from "@/lib/art/core";
 import { drawBuilding, drawFence, drawGenerator, drawKiosk, drawWaterTank } from "@/lib/art/buildings";
-import { drawBench, drawLaterite, drawPalm, drawPole, drawRoad, drawSignboard, drawTree, drawUmbrellaStall } from "@/lib/art/ground";
-import { drawChickens, drawDrum, drawPots } from "@/lib/art/props";
+import { drawBench, drawLaterite, drawLawn, drawPalm, drawPaving, drawPole, drawRoad, drawSignboard, drawTree, drawUmbrellaStall } from "@/lib/art/ground";
+import { drawBigGen, drawBooth, drawChickens, drawDrum, drawFlowers, drawHedge, drawPots } from "@/lib/art/props";
+import { CARS, drawCar } from "@/lib/art/vehicles";
 import { drawPerson, type PersonSpec } from "@/lib/art/people";
 import { CAST } from "@/lib/art/cast";
 import { partOfDay } from "@/lib/engine/clock";
 import type { PropKind, SceneDef, SceneNpc } from "@/lib/scenes/types";
+import { isBlocked, sceneBlockers, type Rect } from "@/lib/scenes/collision";
 
 type Near =
   | { type: "door"; id: string; label: string }
@@ -31,9 +33,11 @@ interface Sprite {
   sortY: number;
 }
 
-interface Rect { x: number; y: number; w: number; h: number }
 
 const WALK_SPEED = 1.5; // m/s
+
+/** Zoom: closer on phones so people stay readable. */
+const ppmFor = (w: number) => Math.max(22, Math.min(36, w / (w < 600 ? 15 : 22)));
 
 /** Bounds of a prop's drawing around its origin, in screen metres. */
 function propBounds(p: PropKind): [number, number, number, number] {
@@ -46,24 +50,12 @@ function propBounds(p: PropKind): [number, number, number, number] {
     case "signboard": return [-p.w / 2 - 0.3, -2.8 * K, p.w / 2 + 0.3, 0.5];
     case "tank": return [-1, -4.4 * K - 0.5, 1, 0.8];
     case "bench": return [-1, -0.9, 1, 0.4];
+    case "car": return p.dir === "E" || p.dir === "W" ? [-3, -2.4, 3.2, 1.6] : [-1.4, -4.2, 1.4, 2.4];
+    case "booth": return [-1.6, -4, 2.6, 1.2];
+    case "biggen": return [-1.6, -2.6, 2, 0.8];
+    case "hedge": return [-0.2, -1.4, p.w + 0.3, 0.5];
+    case "flowers": return [-0.2, -0.9, p.w + 0.2, 0.2];
     default: return [-1, -1.5, 1, 0.5];
-  }
-}
-
-/** Ground footprint that blocks walking, in world metres (relative to origin). */
-function propBlock(p: PropKind): Rect | null {
-  switch (p.kind) {
-    case "tree": return { x: -0.3, y: -0.3, w: 0.6, h: 0.6 };
-    case "palm": return { x: -0.3, y: -0.3, w: 0.6, h: 0.6 };
-    case "pole": return { x: -0.15, y: -0.15, w: 0.3, h: 0.3 };
-    case "kiosk": return { x: 0, y: 0, w: 2.4, h: 1.4 };
-    case "umbrella": return { x: -0.8, y: -0.4, w: 1.6, h: 0.8 };
-    case "tank": return { x: -0.7, y: -0.6, w: 1.4, h: 1.2 };
-    case "bench": return { x: -0.8, y: -0.25, w: 1.6, h: 0.5 };
-    case "pots": return { x: -0.9, y: -0.5, w: 1.9, h: 1 };
-    case "drum": return { x: -0.35, y: -0.35, w: 0.7, h: 0.7 };
-    case "signboard": return { x: -p.w / 2, y: -0.1, w: p.w, h: 0.2 };
-    default: return null;
   }
 }
 
@@ -81,10 +73,15 @@ function drawProp(ctx: Ctx, p: PropKind, seed: number, t: number) {
     case "pots": return drawPots(ctx, t);
     case "drum": return drawDrum(ctx, p.color);
     case "chickens": return drawChickens(ctx, p.n, t, seed);
+    case "car": return drawCar(ctx, CARS[p.car], p.dir);
+    case "booth": return drawBooth(ctx);
+    case "biggen": return drawBigGen(ctx, p.running, t);
+    case "hedge": return drawHedge(ctx, p.w, seed);
+    case "flowers": return drawFlowers(ctx, p.w, seed);
   }
 }
 
-const ANIMATED = new Set(["generator", "pots", "chickens"]);
+const ANIMATED = new Set(["generator", "pots", "chickens", "biggen"]);
 
 function makeSprite(pxPerM: number, bounds: [number, number, number, number], draw: (ctx: Ctx) => void): Omit<Sprite, "sortY"> {
   const [x0, y0, x1, y1] = bounds;
@@ -141,19 +138,7 @@ export default function StreetScene({
     facing.current = entry.at === "spawn" ? "S" : "N";
   }, [entry.key, entry.at, scene]);
 
-  const blockers = useMemo<Rect[]>(() => {
-    const r: Rect[] = [];
-    for (const b of scene.buildings) r.push({ x: b.x, y: b.y, w: b.spec.w, h: b.spec.d });
-    for (const f of scene.fences) {
-      const segs: [number, number][] = f.gate ? [[f.x0, f.gate.x], [f.gate.x + f.gate.w, f.x1]] : [[f.x0, f.x1]];
-      for (const [a, b] of segs) if (b > a) r.push({ x: a, y: f.y - 0.2, w: b - a, h: 0.4 });
-    }
-    for (const p of scene.props) {
-      const k = propBlock(p.spec);
-      if (k) r.push({ x: p.x + k.x, y: p.y + k.y, w: k.w, h: k.h });
-    }
-    return r;
-  }, [scene]);
+  const blockers = useMemo<Rect[]>(() => sceneBlockers(scene), [scene]);
 
   const npcHere = (n: SceneNpc) => n.at[partOfDay(minuteRef.current)];
 
@@ -170,9 +155,13 @@ export default function StreetScene({
     const buildCache = (pxPerM: number) => {
       const ground = makeSprite(pxPerM, [0, 0, scene.w, scene.h * G], (ctx) => {
         drawLaterite(ctx, 0, 0, scene.w, scene.h, scene.ground.seed, scene.ground.grassy);
-        for (const y of scene.yards) {
-          ctx.fillStyle = "rgba(205,140,95,0.35)";
-          ctx.fillRect(y.x, y.y * G, y.w, y.h * G);
+        for (const [i, y] of scene.yards.entries()) {
+          if (y.surface === "paved") drawPaving(ctx, y.x, y.y, y.w, y.h, scene.ground.seed + i);
+          else if (y.surface === "lawn") drawLawn(ctx, y.x, y.y, y.w, y.h, scene.ground.seed + i);
+          else {
+            ctx.fillStyle = "rgba(205,140,95,0.35)";
+            ctx.fillRect(y.x, y.y * G, y.w, y.h * G);
+          }
         }
         for (const r of scene.roads) drawRoad(ctx, r);
       });
@@ -194,9 +183,7 @@ export default function StreetScene({
       return { ground: { ...ground, sortY: -1 }, statics };
     };
 
-    const blocked = (x: number, y: number) =>
-      x < 0.3 || y < 0.3 || x > scene.w - 0.3 || y > scene.h - 0.3 ||
-      blockers.some((r) => x > r.x - 0.2 && x < r.x + r.w + 0.2 && y > r.y - 0.15 && y < r.y + r.h + 0.15);
+    const blocked = (x: number, y: number) => isBlocked(scene, blockers, x, y);
 
     const step = (dt: number) => {
       let vx = 0, vy = 0;
@@ -263,7 +250,7 @@ export default function StreetScene({
         cv.width = Math.round(W * dpr);
         cv.height = Math.round(H * dpr);
       }
-      const ppm = Math.max(20, Math.min(36, W / 22));
+      const ppm = ppmFor(W);
       const key = `${ppm.toFixed(2)}|${dpr}`;
       if (!cache || cache.key !== key) cache = { key, ...buildCache(ppm * dpr) };
 
@@ -359,7 +346,7 @@ export default function StreetScene({
     const toWorld = (e: PointerEvent) => {
       const r = cv.getBoundingClientRect();
       const W = r.width, H = r.height;
-      const ppm = Math.max(20, Math.min(36, W / 22));
+      const ppm = ppmFor(W);
       const viewW = W / ppm, viewH = H / ppm;
       const camX = Math.max(viewW / 2, Math.min(scene.w - viewW / 2, pos.current.x));
       const camSY = Math.max(viewH / 2 - 1.5, Math.min(scene.h * G - viewH / 2, pos.current.y * G - 0.8));
@@ -419,12 +406,12 @@ export default function StreetScene({
 
   return (
     <div>
-      <div ref={wrapRef} className="relative h-[440px] overflow-hidden rounded-2xl ring-1 ring-white/10 sm:h-[500px]">
+      <div ref={wrapRef} className="relative h-[min(60svh,520px)] min-h-[320px] overflow-hidden rounded-2xl ring-1 ring-white/10 sm:h-[500px]">
         <canvas ref={cvRef} className="block h-full w-full touch-none" role="img" aria-label={`${scene.name}, walkable street`} />
         {near && (
           <button
             onClick={act}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-mapo px-5 py-2.5 text-sm font-extrabold text-charcoal shadow-lg ring-2 ring-charcoal/20"
+            className="absolute bottom-3 left-1/2 max-w-[92%] -translate-x-1/2 truncate whitespace-nowrap rounded-full bg-mapo px-5 py-2.5 text-sm font-extrabold text-charcoal shadow-lg ring-2 ring-charcoal/20"
           >
             {near.type === "exit" ? "🚶 " : near.type === "npc" ? "💬 " : "🚪 "}
             {near.label}

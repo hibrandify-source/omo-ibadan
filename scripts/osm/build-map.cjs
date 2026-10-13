@@ -59,6 +59,7 @@ const D = [
   ["ui-gate", "UI Gate / Agbowo", () => ({ ...nearestOnRoad("Oyo Road", ui), src: "osm: Oyo Road point nearest the UI campus" })],
   ["agbowo", "Agbowo", () => ({ ...cluster(/agbowo/i), src: "osm: Agbowo-named features" })],
   ["bodija", "Bodija Market", () => ({ ...landmark("Bodija Market"), src: "osm: Bodija Market" })],
+  ["old-bodija", "Old Bodija", () => ({ ...landmark("Old Bodija"), src: "osm: Old Bodija neighbourhood" })],
   ["samonda", "Samonda", () => ({ ...cluster(/samonda/i), src: "osm: Samonda-named features" })],
   ["sango", "Sango / Poly", () => ({ ...cluster(/sango/i), src: "osm: Sango-named features (Polytechnic Ibadan nearby)" })],
   ["ojoo", "Ojoo", () => ({ ...roadEnd("Ibadan-Ilorin Expressway", "south"), src: "osm: south end of the Ibadan–Ilorin Expressway" })],

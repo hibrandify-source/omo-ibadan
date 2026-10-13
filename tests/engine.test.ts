@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { BACKGROUNDS, EXAM_POOL, MAP_NODES, PRICES, distanceKm, emptySkills, grantXp, MAX_SKILL_LEVEL } from "@/lib/game";
 import { mapDistrict, roadKm } from "@/lib/map/ibadan";
+import { STREET_SCENES } from "@/lib/scenes";
+import { isBlocked, reachable, sceneBlockers } from "@/lib/scenes/collision";
+import { CAST } from "@/lib/art/cast";
 import {
   WAKE_MINUTE, advanceClock, ageOn, calendarFor, formatTime, isBirthday, minutesUntilMorning, partOfDay, shiftOpen,
 } from "@/lib/engine/clock";
@@ -246,6 +249,31 @@ describe("clock and calendar", () => {
     const r = advanceDay({ day: 2, bg: BACKGROUNDS["omo-iya-lobe"], bond: 60, needs: defaultSave().needs, trait: null, paidObligations: [], eventPending: false, rand: () => 0.99 });
     expect(r.messages[0]).toMatch(/Tue 5 Jan 2027/);
     expect(migrateSave({ v: 2, started: true, actions: 4 })!.minute).toBe(WAKE_MINUTE);
+  });
+});
+
+describe("walkable scenes", () => {
+  for (const scene of Object.values(STREET_SCENES)) {
+    it(`${scene.id}: spawn, gate, doors, exits and people are all reachable on foot`, () => {
+      const blockers = sceneBlockers(scene);
+      const spots = [
+        { name: "arrive", ...scene.arrive },
+        ...scene.doors.map((d) => ({ name: `door ${d.id}`, x: d.x, y: d.y })),
+        ...scene.exits.map((e) => ({ name: `exit ${e.id}`, x: e.x, y: e.y })),
+        ...scene.npcs.flatMap((n) => Object.values(n.at).map((a) => ({ name: `npc ${n.id}`, x: a!.x, y: a!.y + 0.6 }))),
+      ];
+      expect(isBlocked(scene, blockers, scene.spawn.x, scene.spawn.y), "spawn is inside a wall").toBe(false);
+      for (const s of spots) expect(reachable(scene, scene.spawn, s), `${s.name} unreachable`).toBe(true);
+    });
+    it(`${scene.id}: every NPC is drawn from the cast and every district exit exists`, () => {
+      for (const n of scene.npcs) expect(CAST[n.cast], n.cast).toBeDefined();
+      for (const e of scene.exits) if (e.to !== "map") expect(MAP_NODES.some((m) => m.id === e.to), e.to).toBe(true);
+      expect(MAP_NODES.some((m) => m.id === scene.id)).toBe(true);
+    });
+  }
+
+  it("each life's home has a walkable scene", () => {
+    for (const bg of Object.values(BACKGROUNDS)) expect(STREET_SCENES[bg.homeZone], bg.id).toBeDefined();
   });
 });
 

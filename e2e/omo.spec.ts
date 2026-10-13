@@ -28,6 +28,14 @@ const state = (page: Page): Promise<OmoState> =>
 const teleport = (page: Page, x: number, y: number) =>
   page.evaluate(([px, py]) => (window as unknown as { __omo: { teleport: (x: number, y: number) => void } }).__omo.teleport(px, py), [x, y] as [number, number]);
 
+/** Open a game tab. On phones some tabs live under the "More" sheet. */
+async function openTab(page: Page, label: string) {
+  const direct = page.getByRole("button", { name: label, exact: true });
+  if (await direct.first().isVisible()) return direct.first().click();
+  await page.getByRole("button", { name: "More", exact: true }).click();
+  await page.getByRole("button", { name: label, exact: true }).first().click();
+}
+
 async function startGame(page: Page, name: string, birth: BackgroundId = "omo-iya-lobe") {
   // ?birth= forces the lottery in dev so tests are deterministic
   await page.goto(`/play?birth=${birth}`);
@@ -78,7 +86,7 @@ test.describe("Omo Ibadan E2E", () => {
       ["📣 Ojude", "ojude", /Hood Turf/],
     ];
     for (const [label, id, body] of tabs) {
-      await page.getByRole("button", { name: label }).click();
+      await openTab(page, label);
       expect((await state(page)).tab).toBe(id);
       await expect(page.getByText(body).first()).toBeVisible();
     }
@@ -86,7 +94,7 @@ test.describe("Omo Ibadan E2E", () => {
 
   test("market: buy Oja Oba, sell Bodija = deterministic profit + Mama Put remembers", async ({ page }) => {
     await startGame(page, "OjaTrader");
-    await page.getByRole("button", { name: "🚐 Hustle" }).click();
+    await openTab(page, "🚐 Hustle");
     await page.getByRole("button", { name: /Buy Oja Oba/ }).click();
     let s = await state(page);
     expect(s.ola).toBe(START - PRICES.market.stockBag);
@@ -100,7 +108,7 @@ test.describe("Omo Ibadan E2E", () => {
 
   test("micra ride: autopilot completes, fare deducted, touts remember", async ({ page }) => {
     await startGame(page, "MicraRider");
-    await page.getByRole("button", { name: "🚐 Hustle" }).click();
+    await openTab(page, "🚐 Hustle");
     await page.getByRole("button", { name: "🧍 Ride" }).click();
     await page.getByRole("button", { name: /Board micra/ }).click();
     // 9s autopilot corridor; generous timeout for CI/dev hiccups
@@ -114,7 +122,7 @@ test.describe("Omo Ibadan E2E", () => {
 
   test("exam: correct answer pays, Ada remembers", async ({ page }) => {
     await startGame(page, "ExamBrain");
-    await page.getByRole("button", { name: "📝 Exam" }).click();
+    await openTab(page, "📝 Exam");
     const correct = EXAM_POOL[0].options[EXAM_POOL[0].answer];
     await page.getByRole("button", { name: correct }).click();
     const s = await state(page);
@@ -147,10 +155,10 @@ test.describe("Omo Ibadan E2E", () => {
 
   test("missions + journal: trade then claim Bodija trader, Itan records it", async ({ page }) => {
     await startGame(page, "ItanScribe");
-    await page.getByRole("button", { name: "🚐 Hustle" }).click();
+    await openTab(page, "🚐 Hustle");
     await page.getByRole("button", { name: /Buy Oja Oba/ }).click();
     await page.getByRole("button", { name: /Sell Bodija/ }).click();
-    await page.getByRole("button", { name: "📖 Itan" }).click();
+    await openTab(page, "📖 Itan");
     await expect(page.getByText("Bodija trader").first()).toBeVisible();
     // claim the met mission (m4); m1 auto-mission may already be claimed state — click any enabled Claim
     const claims = page.getByRole("button", { name: "Claim", exact: true });
@@ -164,10 +172,10 @@ test.describe("Omo Ibadan E2E", () => {
 
   test("people panel shows bonds after hustling", async ({ page }) => {
     await startGame(page, "PeopleP");
-    await page.getByRole("button", { name: "🚐 Hustle" }).click();
+    await openTab(page, "🚐 Hustle");
     await page.getByRole("button", { name: /Buy Oja Oba/ }).click();
     await page.getByRole("button", { name: /Sell Bodija/ }).click();
-    await page.getByRole("button", { name: "📣 Ojude" }).click();
+    await openTab(page, "📣 Ojude");
     await expect(page.getByText("People — who knows your name")).toBeVisible();
     await expect(page.getByText("Mama Put")).toBeVisible();
     const s = await state(page);
@@ -176,7 +184,7 @@ test.describe("Omo Ibadan E2E", () => {
 
   test("progress survives reload via local save", async ({ page }) => {
     await startGame(page, "ReloadChap");
-    await page.getByRole("button", { name: "🚐 Hustle" }).click();
+    await openTab(page, "🚐 Hustle");
     await page.getByRole("button", { name: /Buy Oja Oba/ }).click();
     // force a render + save flush before reloading
     await expect.poll(() => state(page).then((s) => s.ola)).toBe(START - PRICES.market.stockBag);
@@ -224,7 +232,7 @@ test.describe("Omo Ibadan E2E", () => {
   test("progress survives a reload (single save format)", async ({ page }) => {
     await startGame(page, "SaveCheck");
     await page.getByRole("button", { name: /Help Mama at the stall/ }).click();
-    await page.getByRole("button", { name: "🚐 Hustle" }).click();
+    await openTab(page, "🚐 Hustle");
     await page.getByRole("button", { name: /Buy Oja Oba/ }).click();
     const before = await state(page);
     await page.reload();
@@ -242,16 +250,16 @@ test.describe("Omo Ibadan E2E", () => {
     let s = await state(page);
     expect(s.minute).toBe(6 * 60);
     await expect(page.getByLabel("Time")).toContainText("6:00 am");
-    await expect(page.getByText(/Age 18/).first()).toBeVisible();
+    await expect(page.getByText(/Age 18/).filter({ visible: true }).first()).toBeVisible();
     await page.getByRole("button", { name: /Help Mama at the stall/ }).click(); // 3 hours
     s = await state(page);
     expect(s.minute).toBe(9 * 60);
-    await page.getByRole("button", { name: "🏠 Ilé" }).click();
+    await openTab(page, "🏠 Ilé");
     await page.getByRole("button", { name: /Sleep here/ }).click();
     s = await state(page);
     expect(s.day).toBe(2);
     expect(s.minute).toBe(6 * 60);
-    await expect(page.getByText("Tue 5 Jan 2027").first()).toBeVisible();
+    await expect(page.getByLabel("Time")).toContainText("Tue 5 Jan");
   });
 
   test("Beere: Omo Iya Lobe starts at home in the walkable compound", async ({ page }) => {
@@ -277,14 +285,50 @@ test.describe("Omo Ibadan E2E", () => {
     expect((await state(page)).tab).toBe("ile");
   });
 
+  test("Old Bodija: Alowonle starts at Daddy's house; gateman, empty veranda, the car", async ({ page }) => {
+    await startGame(page, "BodijaHeir2", "alowonle");
+    expect((await state(page)).avatarZone).toBe("old-bodija");
+    await expect(page.getByRole("img", { name: /Old Bodija, walkable street/ })).toBeVisible();
+    const moveTo = (x: number, y: number) =>
+      page.evaluate(([px, py]) => (window as unknown as { __omoScene: { moveTo: (x: number, y: number) => void } }).__omoScene.moveTo(px, py), [x, y] as [number, number]);
+    await moveTo(27.6, 31.8);
+    await page.getByRole("button", { name: /Talk to Musa/ }).click();
+    expect((await state(page)).feed[0]).toMatch(/Musa/);
+    await moveTo(18.3, 19.4);
+    await page.getByRole("button", { name: /Report to Daddy on the veranda/ }).click();
+    expect((await state(page)).feed[0]).toMatch(/veranda is empty/);
+    await moveTo(23.6, 24.3);
+    await page.getByRole("button", { name: /Drive out in your car/ }).click();
+    expect((await state(page)).feed[0]).toMatch(/Musa opens the gate/);
+  });
+
+  test("phones: no sideways scroll, bottom tab bar, the street fills the screen", async ({ page }, info) => {
+    test.skip(info.project.name !== "mobile", "phone layout only");
+    await startGame(page, "PhoneWaka");
+    const w = await page.evaluate(() => ({ vw: document.documentElement.clientWidth, sw: document.documentElement.scrollWidth, sy: window.scrollY }));
+    expect(w.sw).toBeLessThanOrEqual(w.vw);
+    expect(w.sy).toBe(0); // landed at the top, not halfway down the join form
+    await expect(page.getByRole("navigation", { name: "Game tabs" })).toBeVisible();
+    const scene = await page.getByRole("img", { name: /Beere, walkable street/ }).boundingBox();
+    const vh = page.viewportSize()!.height;
+    expect(scene!.height).toBeGreaterThan(vh * 0.45);
+    await openTab(page, "📣 Ojude");
+    expect((await state(page)).tab).toBe("ojude");
+    for (const path of ["/", "/how-to-play", "/leaderboard"]) {
+      await page.goto(path);
+      const o = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      expect(o, path).toBeLessThanOrEqual(0);
+    }
+  });
+
   test("no uncaught errors from load through first hustle", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (e) => pageErrors.push(e.message));
     await startGame(page, "CleanRun");
-    await page.getByRole("button", { name: "🚐 Hustle" }).click();
+    await openTab(page, "🚐 Hustle");
     await page.getByRole("button", { name: /Buy Oja Oba/ }).click();
     await page.getByRole("button", { name: /Sell Bodija/ }).click();
-    await page.getByRole("button", { name: "📖 Itan" }).click();
+    await openTab(page, "📖 Itan");
     expect(pageErrors).toEqual([]);
   });
 });

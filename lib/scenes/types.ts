@@ -17,7 +17,12 @@ export type PropKind =
   | { kind: "signboard"; text: string; bg: string; fg: string; w: number }
   | { kind: "pots" } // Mama's soup pots on firewood
   | { kind: "drum"; color: string } // water drum
-  | { kind: "chickens"; n: number };
+  | { kind: "chickens"; n: number }
+  | { kind: "car"; car: "micra" | "korope" | "corolla" | "camry" | "jeep"; dir: "S" | "N" | "E" | "W" }
+  | { kind: "booth" } // gateman's post
+  | { kind: "biggen"; running: boolean } // soundproof house generator
+  | { kind: "hedge"; w: number }
+  | { kind: "flowers"; w: number };
 
 export interface Placed<T> {
   x: number;
@@ -60,8 +65,8 @@ export interface SceneDef {
   h: number;
   ground: { seed: number; grassy: number };
   roads: RoadSpec[];
-  /** swept dirt yards and footpaths, drawn as lighter laterite */
-  yards: { x: number; y: number; w: number; h: number }[];
+  /** yards and compounds: swept dirt (default), interlocking paving, or lawn */
+  yards: { x: number; y: number; w: number; h: number; surface?: "dirt" | "paved" | "lawn" }[];
   buildings: Placed<BuildingSpec>[];
   fences: FenceSpec[];
   props: Placed<PropKind>[];

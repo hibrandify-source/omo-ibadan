@@ -2,10 +2,12 @@
 // the painted DistrictScene (or a placeholder) until theirs is built.
 
 import { BEERE } from "./beere";
+import { OLD_BODIJA } from "./oldBodija";
 import type { SceneDef } from "./types";
 
 export const STREET_SCENES: Record<string, SceneDef> = {
   beere: BEERE,
+  "old-bodija": OLD_BODIJA,
 };
 
 export const streetSceneFor = (zone: string): SceneDef | undefined => STREET_SCENES[zone];
