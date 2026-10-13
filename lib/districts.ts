@@ -86,3 +86,6 @@ export const DISTRICT_SCENES: Record<string, DistrictSceneDef> = {
 
 export const sceneFor = (zone: string): DistrictSceneDef =>
   DISTRICT_SCENES[zone] ?? DISTRICT_SCENES["ui-gate"];
+
+/** Districts on the city map that have a walkable scene yet. */
+export const hasScene = (zone: string): boolean => zone in DISTRICT_SCENES;

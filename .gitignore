@@ -42,3 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# raw OpenStreetMap extracts (rebuild with scripts/osm, see README there)
+scripts/osm/raw/*.json

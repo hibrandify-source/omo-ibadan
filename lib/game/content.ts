@@ -31,7 +31,7 @@ export const MAP_NODES: MapNode[] = [
   { id: "bodija", name: "Bodija Market + Amala Skye", yoruba: "Bọ́dìjà", zone: "academic", hood: "bodija", blurb: "Planned estate + biggest food market. Haggle capital.", unlocks: ["market"] },
   { id: "mokola", name: "Mokola Hill", yoruba: "Oke Mokola", zone: "academic", hood: "bodija", blurb: "Hill climb start. Micra engine test.", unlocks: ["micra"] },
   { id: "dugbe", name: "Dugbe / Cocoa House", yoruba: "Ilé Àwọn Àgbẹ̀", zone: "heritage", hood: "beere", blurb: "Commercial nerve centre. Ile Awon Agbe — first skyscraper.", unlocks: ["job"] },
-  { id: "mapo", name: "Mapo Hall / Oke Mapo / Beere", yoruba: "Oke Mapo", zone: "heritage", hood: "beere", blurb: "Brown roofs viewpoint. Olubadan coronation ground.", unlocks: ["title"] },
+  { id: "mapo", name: "Mapo Hall / Oke Mapo", yoruba: "Oke Mapo", zone: "heritage", hood: "beere", blurb: "Brown roofs viewpoint. Olubadan coronation ground.", unlocks: ["title"] },
   { id: "oja-oba", name: "Oja Oba", yoruba: "Ọjà Ọba", zone: "heritage", hood: "beere", blurb: "King's market. Buy low here, sell high in Bodija.", unlocks: ["market"] },
   { id: "oje", name: "Oje Market", yoruba: "Ọjà Oje", zone: "heritage", hood: "beere", blurb: "Traditional + spiritual goods. Elders watch your Iwa.", unlocks: ["market"] },
   { id: "agodi", name: "Agodi Gardens + Zoo", yoruba: "Agodi", zone: "heritage", hood: "bodija", blurb: "Chill + family picnic. Restore energy fast.", unlocks: ["rest"] },
@@ -39,7 +39,14 @@ export const MAP_NODES: MapNode[] = [
   { id: "molete", name: "Molete", yoruba: "Molete", zone: "hustle", hood: "challenge", blurb: "Bridge + interchange hustle. Deliver amala before it cools.", unlocks: ["mission"] },
   { id: "ring-road", name: "Ring Road / Palms", yoruba: "Ring Road", zone: "hustle", hood: "challenge", blurb: "Rain locks here first. Keep fuel reserve.", unlocks: ["flex"] },
   { id: "iwo-road", name: "Iwo Road Park + Gbagi", yoruba: "Iwo Road", zone: "hustle", hood: "iwo-road", blurb: "Final boss motor park. Load fast, dodge VIO.", unlocks: ["micra", "market"] },
-  { id: "eleyele", name: "Eleyele / Jericho", yoruba: "Eleyele", zone: "chill", hood: "ojoo", blurb: "Lake view + GRA calm. Late-game flex unlock.", unlocks: ["flex"] },
+  { id: "eleyele", name: "Eleyele", yoruba: "Eleyele", zone: "chill", hood: "ojoo", blurb: "Lake view + barracks calm. Late-game flex unlock.", unlocks: ["flex"] },
+  // added with the OpenStreetMap city map; street scenes for these land in phase 3
+  { id: "beere", name: "Beere", yoruba: "Bẹẹrẹ", zone: "heritage", hood: "beere", blurb: "Old-city compounds under brown roofs. Mama's room is here.", unlocks: [] },
+  { id: "agbowo", name: "Agbowo", yoruba: "Agbowo", zone: "academic", hood: "agbowo", blurb: "Face-me-I-face-you rooms full of UI students.", unlocks: [] },
+  { id: "ojoo", name: "Ojoo", yoruba: "Ojoo", zone: "hustle", hood: "ojoo", blurb: "Where Oyo Road meets the expressway. Buses north.", unlocks: [] },
+  { id: "moniya", name: "Moniya", yoruba: "Moniya", zone: "hustle", hood: "ojoo", blurb: "Edge of the city. Cheaper rent, longer ride.", unlocks: [] },
+  { id: "akobo", name: "Akobo", yoruba: "Akobo", zone: "chill", hood: "bodija", blurb: "New estates going up. Quiet streets, big gates.", unlocks: [] },
+  { id: "jericho", name: "Jericho", yoruba: "Jẹ́ríkò", zone: "chill", hood: "beere", blurb: "Old GRA: big compounds, tall trees, doctors' quarters.", unlocks: [] },
 ];
 
 // ---- Identity: Ọkùnrin / Obìnrin (visuals + story flavor) ----

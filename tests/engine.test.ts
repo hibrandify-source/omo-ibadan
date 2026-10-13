@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BACKGROUNDS, EXAM_POOL, PRICES, emptySkills, grantXp, MAX_SKILL_LEVEL } from "@/lib/game";
+import { BACKGROUNDS, EXAM_POOL, MAP_NODES, PRICES, distanceKm, emptySkills, grantXp, MAX_SKILL_LEVEL } from "@/lib/game";
+import { mapDistrict, roadKm } from "@/lib/map/ibadan";
 import {
   chooseSave,
   cloudRowFor,
@@ -165,6 +166,36 @@ describe("titles", () => {
   it("both together do", () => {
     expect(titleIndex(600_000, 56)).toBe(1);
     expect(titleFor(60_000_000, 95)).toBe("Olubadan of Hustle");
+  });
+});
+
+describe("city map (OpenStreetMap)", () => {
+  it("every game district is on the map with a road distance to every other", () => {
+    for (const a of MAP_NODES) {
+      expect(mapDistrict(a.id), a.id).toBeDefined();
+      for (const b of MAP_NODES) {
+        if (a.id === b.id) continue;
+        const km = roadKm(a.id, b.id);
+        expect(km, `${a.id}→${b.id}`).not.toBeNull();
+        expect(km!).toBeGreaterThan(0);
+        expect(km!).toBeLessThan(40);
+      }
+    }
+  });
+
+  it("road distances match the real city", () => {
+    expect(distanceKm("mapo", "oja-oba")).toBeLessThan(1.5); // next door in the old city
+    expect(distanceKm("bodija", "ui-gate")).toBeLessThan(4);
+    expect(distanceKm("iwo-road", "challenge")).toBeGreaterThan(7); // across town
+    expect(distanceKm("ojoo", "moniya")).toBeGreaterThan(distanceKm("ojoo", "ui-gate"));
+  });
+
+  it("districts sit where they really are, relative to each other", () => {
+    const d = (id: string) => mapDistrict(id)!;
+    expect(d("ojoo").y).toBeLessThan(d("ui-gate").y); // Ojoo is north of UI
+    expect(d("challenge").y).toBeGreaterThan(d("mapo").y); // Challenge is south of Mapo
+    expect(d("iwo-road").x).toBeGreaterThan(d("dugbe").x); // Iwo Road is east of Dugbe
+    expect(d("eleyele").x).toBeLessThan(d("bodija").x); // Eleyele is west of Bodija
   });
 });
 

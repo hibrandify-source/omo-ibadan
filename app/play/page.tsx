@@ -56,9 +56,9 @@ import {
   examQuestion,
   titleFor,
 } from "@/lib/engine/day";
-import MapGraph from "@/components/MapGraph";
+import CityMap from "@/components/CityMap";
 import DistrictScene from "@/components/DistrictScene";
-import { sceneFor } from "@/lib/districts";
+import { hasScene, sceneFor } from "@/lib/districts";
 import RoomCard from "@/components/RoomCard";
 import type { SceneTeleport as Teleport } from "@/components/DistrictScene";
 import HomeTab from "@/components/HomeTab";
@@ -1484,22 +1484,28 @@ export default function Home() {
                     <p className="text-xs text-cream/55">Tap to waka · 🚪 markers na doors, no tabs · tap people to greet</p>
                   </div>
                 </div>
-                <DistrictScene
-                  zone={avatarZone}
-                  playerName={username}
-                  playerColor={topColor}
-                  teleport={teleport}
-                  weather={weather}
-                  saver={saver}
-                  npcMeets={Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets]))}
-                  onGate={(id) => travelTo(id)}
-                  onDoor={(d) => setNearDoor(d)}
-                  onGreetNpc={greetNpc}
-                />
+                {hasScene(avatarZone) ? (
+                  <DistrictScene
+                    zone={avatarZone}
+                    playerName={username}
+                    playerColor={topColor}
+                    teleport={teleport}
+                    weather={weather}
+                    saver={saver}
+                    npcMeets={Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets]))}
+                    onGate={(id) => travelTo(id)}
+                    onDoor={(d) => setNearDoor(d)}
+                    onGreetNpc={greetNpc}
+                  />
+                ) : (
+                  <div className="rounded-2xl bg-white/[0.06] p-6 text-center text-sm text-cream/80 ring-1 ring-white/10">
+                    You are in <b>{MAP_NODES.find((n) => n.id === avatarZone)?.name ?? avatarZone}</b>. Its street is being built; use the map below to move on.
+                  </div>
+                )}
               </div>
               <div className="rounded-3xl bg-white p-4 shadow-[0_16px_40px_-20px_rgba(122,74,43,0.35)] ring-1 ring-roof/10 sm:p-5">
-                <h3 className="font-display text-base font-extrabold tracking-tight">🗺 Districts</h3>
-                <p className="mb-2 text-xs text-charcoal/55">Travel costs by distance — micra about {naira(PRICES.transport.micraFarePerKm)}/km, trek free but tiring{bg.hasCar ? ", your car runs on the day's fuel" : ""}. ≤2km na free waka.</p>
+                <h3 className="font-display text-base font-extrabold tracking-tight">🗺 Ibadan</h3>
+                <p className="mb-2 text-xs text-charcoal/55">Real roads, real distances. Micra about {naira(PRICES.transport.micraFarePerKm)}/km, trek free but tiring{bg.hasCar ? ", your car runs on the day's fuel" : ""}. ≤2km na free waka.</p>
                 <div className="mb-3 flex gap-1.5 rounded-full bg-cream p-1 text-xs font-bold ring-1 ring-roof/10">
                   {bg.hasCar && (
                     <button onClick={() => setTravelMode("car")} className={`flex-1 rounded-full py-1.5 ${travelMode === "car" ? "bg-charcoal text-cream" : "text-charcoal/60"}`}>🚗 Car</button>
@@ -1507,16 +1513,16 @@ export default function Home() {
                   <button onClick={() => setTravelMode("micra")} className={`flex-1 rounded-full py-1.5 ${travelMode === "micra" ? "bg-charcoal text-cream" : "text-charcoal/60"}`}>🚐 Micra</button>
                   <button onClick={() => setTravelMode("trek")} className={`flex-1 rounded-full py-1.5 ${travelMode === "trek" ? "bg-charcoal text-cream" : "text-charcoal/60"}`}>🚶 Trek (free)</button>
                 </div>
-                <MapGraph
-                  active={node}
-                  travelFrom={node}
-                  getFare={(id) => {
+                <CityMap
+                  current={node}
+                  playable={hasScene}
+                  fareFor={(id) => {
                     const km = getDist(node, id);
-                    if (km <= 2 || id === node) return null;
-                    if (travelMode === "car" && bg.hasCar) return `${km}km · 🚗`;
-                    return travelMode === "trek" ? `${km}km · ${Math.round(km * 2)}⚡` : `${km}km · ${naira(micraFare(km))}`;
+                    if (km <= 2) return "short waka · free";
+                    if (travelMode === "car" && bg.hasCar) return "🚗 your car";
+                    return travelMode === "trek" ? `🚶 ${Math.round(km * 2)}⚡` : `🚐 ${naira(micraFare(km))}`;
                   }}
-                  onSelect={(id) => travelTo(id)}
+                  onTravel={(id) => travelTo(id)}
                 />
               </div>
             </div>
