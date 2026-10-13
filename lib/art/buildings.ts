@@ -322,9 +322,28 @@ export function drawBuilding(ctx: Ctx, spec: BuildingSpec) {
     ctx.strokeStyle = "#6f6a61";
     ctx.lineWidth = 0.04;
     ctx.stroke();
-    // parapet + stains
+    // parapet, stains, and what lives on every Nigerian flat roof: AC units and a water tank
     ctx.fillStyle = "rgba(60,50,40,0.18)";
     ctx.fillRect(x0 + o, y0 + o + zy + 0.3, b.w * 0.5, b.d * 0.4);
+    const rr = rng(b.seed + 99);
+    for (let i = 0; i < Math.max(2, Math.floor(b.w / 7)); i++) {
+      const ax = 1 + rr() * (b.w - 3);
+      const ay = zy + 0.6 + rr() * (b.d - 1.6);
+      rrect(ctx, ax, ay - 0.5, 1.0, 0.75, 0.05);
+      ctx.fillStyle = "#e9e7e1";
+      ctx.fill();
+      oval(ctx, ax + 0.5, ay - 0.15, 0.25, 0.18);
+      ctx.fillStyle = "#9a978f";
+      ctx.fill();
+    }
+    const tx = b.w - 2.2;
+    const ty = zy + b.d * 0.4;
+    rrect(ctx, tx - 0.6, ty - 1.4, 1.2, 1.3, 0.25);
+    ctx.fillStyle = "#1f1f1e";
+    ctx.fill();
+    oval(ctx, tx, ty - 1.4, 0.6, 0.25);
+    ctx.fillStyle = "#2e2e2c";
+    ctx.fill();
   } else if (b.roof === "shed") {
     // single slope falling toward the front
     roofSheet(ctx, [x0, y0 + ry, x1, y0 + ry, x1, y1 + zy, x0, y1 + zy], roofCol, "v", b.rust, b.seed, 0);
@@ -424,7 +443,7 @@ export function drawCivicHall(ctx: Ctx, opts: { w: number; d: number; h: number;
 }
 
 /** A campus gate: two pillars, a beam with the name, a security post. Origin = centre of the gateway on the ground. */
-export function drawGateArch(ctx: Ctx, text: string, span = 9) {
+export function drawGateArch(ctx: Ctx, text: string, span = 9, boom = true) {
   const h = 6.2 * K;
   for (const x of [-span / 2 - 0.9, span / 2]) {
     ctx.fillStyle = "#c9c1b1";
@@ -440,6 +459,7 @@ export function drawGateArch(ctx: Ctx, text: string, span = 9) {
   ctx.lineWidth = 0.08;
   ctx.strokeRect(-span / 2 - 1.2, -h - 1.1, span + 2.4, 1.1);
   label(ctx, text, 0, -h - 0.55, 0.55, "#f3efe4", 900);
+  if (!boom) return;
   // the boom barrier, raised
   line(ctx, span / 2 - 0.2, -1.0 * K, span / 2 - 1.4, -4.2 * K, "#d23b2a", 0.12);
   line(ctx, span / 2 - 0.5, -1.7 * K, span / 2 - 0.9, -2.9 * K, "#f2efe6", 0.12);

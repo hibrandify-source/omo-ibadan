@@ -3,6 +3,9 @@
 
 import { BEERE } from "./beere";
 import { BODIJA } from "./bodija";
+import { ALAKIA } from "./alakia";
+import { SABO } from "./sabo";
+import { AGBENI, ALESHINLOYE, GBAGI } from "./markets2";
 import { MAPO } from "./mapo";
 import { UI_GATE } from "./uiGate";
 import { IWO_ROAD } from "./iwoRoad";
@@ -18,6 +21,11 @@ export const STREET_SCENES: Record<string, SceneDef> = {
   "iwo-road": IWO_ROAD,
   mapo: MAPO,
   "ui-gate": UI_GATE,
+  alakia: ALAKIA,
+  sabo: SABO,
+  gbagi: GBAGI,
+  aleshinloye: ALESHINLOYE,
+  agbeni: AGBENI,
 };
 
 export const streetSceneFor = (zone: string): SceneDef | undefined => STREET_SCENES[zone];

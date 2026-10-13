@@ -23,8 +23,15 @@ export type PropKind =
   | { kind: "biggen"; running: boolean } // soundproof house generator
   | { kind: "hedge"; w: number }
   | { kind: "flowers"; w: number }
+  | { kind: "plane"; livery?: string } // origin centre of the fuselage
+  | { kind: "tower" }
+  | { kind: "mosque"; w: number; d: number } // origin NW corner
+  | { kind: "tennis" } // origin NW corner of the court
+  | { kind: "golfgreen" } // origin = the hole
+  | { kind: "suya" }
+  | { kind: "barrow"; load: "sacks" | "cartons" }
   | { kind: "civichall"; w: number; d: number; h: number; name: string } // origin NW corner
-  | { kind: "gatearch"; text: string; span: number } // origin centre of the gateway
+  | { kind: "gatearch"; text: string; span: number; boom?: boolean } // origin centre of the gateway
   | { kind: "stall"; goods: "pepper" | "tomato" | "onion" | "yam" | "fabric" | "grains" | "fish" | "soup" | "provisions"; w?: number };
 
 export interface Placed<T> {

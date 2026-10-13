@@ -15,6 +15,13 @@ export const PRICES = {
     provisionsPack: 6000,
   },
 
+  // ---- Around town ----
+  suyaPlate: 1500, // a wrap of suya at Sabo
+  clubGuestFee: 3000, // Recreation Club day guest
+  caddieRound: 4000, // what a caddie earns carrying a bag for a round
+  alabaruTrip: 2500, // a porter's pay for a morning of loads at the market
+  coldRoomShift: 3500, // a half-day carrying cartons at an Aleshinloye cold room
+
   // ---- Personal ----
   bucketBath: 300, // water + soap for the day
   barberLowcut: 1500,

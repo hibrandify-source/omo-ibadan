@@ -22,6 +22,11 @@ export function propBlock(p: PropKind): Rect | null {
     case "biggen": return { x: -1.3, y: -0.55, w: 2.6, h: 1.1 };
     case "hedge": return { x: 0, y: -0.4, w: p.w, h: 0.5 };
     case "flowers": return { x: 0, y: -0.6, w: p.w, h: 0.6 };
+    case "plane": return { x: -11, y: -1.3, w: 22, h: 2.6 };
+    case "tower": return { x: -2.2, y: -1, w: 4.4, h: 2 };
+    case "mosque": return { x: 0, y: 0, w: p.w, h: p.d };
+    case "suya": return { x: -1, y: -0.5, w: 2, h: 0.6 };
+    case "barrow": return { x: -2.2, y: -0.3, w: 2.5, h: 0.5 };
     case "civichall": return { x: 0, y: 0, w: p.w, h: p.d + 2.6 };
     case "stall": return { x: -(p.w ?? 2.8) / 2, y: -2.2, w: p.w ?? 2.8, h: 2.2 };
     default: return null;

@@ -874,6 +874,73 @@ export default function Home() {
       setDoorOpen(shared);
       return;
     }
+    const part = partOfDay(minuteRef.current);
+    const daytime = part === "morning" || part === "afternoon";
+    if (id === "airport-terminal") {
+      push("✈️ Departure hall: a few flights a week to Abuja and Lagos. Flying lands in a later update; for now, the interstate buses at Iwo Road go everywhere.");
+      spendMinutes(MINUTES.greet);
+      return;
+    }
+    if (id === "airport-watch") {
+      setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 8) }));
+      push("✈️ A turboprop roars down the runway and climbs over Alakia. Fun +8.");
+      spendMinutes(MINUTES.greet * 2);
+      return;
+    }
+    if (id === "park-relax") {
+      setEnergy((e) => Math.min(100, e + 10));
+      setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 15), social: Math.min(100, n.social + 5) }));
+      push("🌳 You sit under the trees at the Olunloyo park. Energy +10, fun +15.");
+      spendMinutes(60);
+      return;
+    }
+    if (id === "rec-tennis") {
+      if (!daytime) { push("🎾 The courts are closed for the night. Come back in the morning."); return; }
+      if (ola < PRICES.clubGuestFee) { push(`🎾 Guest fee is ${naira(PRICES.clubGuestFee)}. You hold ${naira(ola)}.`); return; }
+      setOla((o) => o - PRICES.clubGuestFee);
+      setEnergy((e) => Math.max(5, e - 15));
+      setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 20), social: Math.min(100, n.social + 8) }));
+      addSkill("fitness", 25);
+      meet("Coach Bisola");
+      push(`🎾 An hour of tennis at the Recreation Club (−${naira(PRICES.clubGuestFee)}). Fitness +25 XP, fun +20.`);
+      spendMinutes(120);
+      return;
+    }
+    if (id === "golf-caddie") {
+      if (!daytime) { push("⛳ No rounds after dark. Kabiru says come early."); return; }
+      setEnergy((e) => Math.max(5, e - 15));
+      addSkill("charisma", 10);
+      meet("Chief on the green");
+      earn(PRICES.caddieRound, 1, `⛳ You caddied a round for the Chief: +${naira(PRICES.caddieRound)}, Charisma +10 XP. He asked your name.`, undefined, 240);
+      return;
+    }
+    if (id === "suya") {
+      if (daytime) { push("🔥 Mallam Audu lights his grill in the evening. Come back after five."); return; }
+      if (ola < PRICES.suyaPlate) { push(`🔥 Suya is ${naira(PRICES.suyaPlate)}. You hold ${naira(ola)}.`); return; }
+      setOla((o) => o - PRICES.suyaPlate);
+      setNeeds((n) => ({ ...n, hunger: Math.min(100, n.hunger + 25), fun: Math.min(100, n.fun + 5) }));
+      meet("Mallam Audu");
+      push(`🔥 Suya wrapped in paper with onions and yaji (−${naira(PRICES.suyaPlate)}). Hunger +25.`);
+      spendMinutes(MINUTES.chop);
+      return;
+    }
+    if (id === "alabaru") {
+      if (!daytime) { push("🛒 The loading is done for the day."); return; }
+      if (energy < 25) { push("🛒 Your back can't take loads right now. Chop or rest first."); return; }
+      setEnergy((e) => Math.max(5, e - 15));
+      addSkill("fitness", 20);
+      meet("Baba Alabaru");
+      earn(PRICES.alabaruTrip, 1, `🛒 You pushed cartons to the buses all morning as alabaru: +${naira(PRICES.alabaruTrip)}, Fitness +20 XP.`, undefined, 120);
+      return;
+    }
+    if (id === "cold-room") {
+      if (energy < 25) { push("🧊 Too tired to carry cartons. Chop or rest first."); return; }
+      setEnergy((e) => Math.max(5, e - 15));
+      addSkill("hustle", 15);
+      meet("Madam Cold Room");
+      earn(PRICES.coldRoomShift, 1, `🧊 Half a day carrying frozen fish cartons: +${naira(PRICES.coldRoomShift)}, Hustle +15 XP.`, undefined, 240);
+      return;
+    }
     if (id === "mapo-view") {
       setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 12) }));
       push("🌇 From Mapo hill, rusted roofs run all the way to the horizon. Fun +12. This is Ibadan.");

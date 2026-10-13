@@ -102,6 +102,33 @@ export const CAST: Record<string, PersonSpec> = {
     outfit: { kind: "gown", dress: FABRICS.waxGreen },
     shoes: "#7a4a2b", carry: null,
   },
+  suyaMan: {
+    skin: S[2], height: 1.78, build: 0.95, age: "adult", hair: "lowcut",
+    headwear: { kind: "fila", fabric: { base: "#f2efe6", a: "#c9a24a", b: "#c9a24a", motif: "dots" } },
+    outfit: { kind: "buba-sokoto", top: { base: "#e9e3d6", a: "#e9e3d6", b: "#e9e3d6", motif: "plain" }, bottom: { base: "#e9e3d6", a: "#e9e3d6", b: "#e9e3d6", motif: "plain" } },
+    shoes: PAL.slipper, carry: null,
+  },
+  golfer: {
+    skin: S[3], height: 1.75, build: 1.15, age: "elder", hair: "grey",
+    headwear: { kind: "cap", fabric: { base: "#f2f1ec", a: "#f2f1ec", b: "#f2f1ec", motif: "plain" } },
+    outfit: { kind: "shirt-trousers", shirt: "#2f6fb5", trousers: "#d9cfb8" },
+    shoes: "#f2f1ec", carry: null,
+  },
+  caddie: {
+    skin: S[1], height: 1.72, build: 0.9, age: "adult", hair: "lowcut", headwear: null,
+    outfit: { kind: "shirt-trousers", shirt: "#e1b12c", trousers: "#3a3530" },
+    shoes: PAL.slipper, carry: "bag",
+  },
+  tennisPlayer: {
+    skin: S[4], height: 1.7, build: 0.95, age: "adult", hair: "braids", headwear: null,
+    outfit: { kind: "tee-jeans", tee: "#f2f1ec", jeans: "#f2f1ec" },
+    shoes: "#f2f1ec", carry: null,
+  },
+  porter: {
+    skin: S[0], height: 1.7, build: 1.05, age: "adult", hair: "lowcut", headwear: null,
+    outfit: { kind: "shirt-trousers", shirt: "#8a7a5a", trousers: "#3a3530" },
+    shoes: PAL.slipper, carry: null,
+  },
   tout: {
     skin: S[1], height: 1.73, build: 0.95, age: "adult", hair: "lowcut",
     headwear: { kind: "cap", fabric: { base: "#c9322a", a: "#c9322a", b: "#c9322a", motif: "plain" } },

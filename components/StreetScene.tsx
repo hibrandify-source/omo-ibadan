@@ -11,6 +11,7 @@ import { drawBuilding, drawCivicHall, drawFence, drawGateArch, drawGenerator, dr
 import { drawBench, drawLaterite, drawLawn, drawPalm, drawPaving, drawPole, drawRoad, drawSignboard, drawTree, drawUmbrellaStall } from "@/lib/art/ground";
 import { drawBigGen, drawBooth, drawChickens, drawDrum, drawFlowers, drawHedge, drawPots, drawStall } from "@/lib/art/props";
 import { CARS, drawCar } from "@/lib/art/vehicles";
+import { drawControlTower, drawGolfGreen, drawMosque, drawPlane, drawSuya, drawTennisCourt, drawWheelbarrow } from "@/lib/art/landmarks";
 import { drawPerson, type PersonSpec } from "@/lib/art/people";
 import { CAST } from "@/lib/art/cast";
 import { partOfDay } from "@/lib/engine/clock";
@@ -56,6 +57,13 @@ function propBounds(p: PropKind): [number, number, number, number] {
     case "hedge": return [-0.2, -1.4, p.w + 0.3, 0.5];
     case "flowers": return [-0.2, -0.9, p.w + 0.2, 0.2];
     case "stall": return [-(p.w ?? 2.8) / 2 - 0.4, -4.2, (p.w ?? 2.8) / 2 + 0.4, 0.5];
+    case "plane": return [-12.5, -16, 14, 6.5];
+    case "tower": return [-3, -(12 + 4.6) * K - 1.5, 5.5, 1.5];
+    case "mosque": return [-1, p.d * G - 13 * K - 2, p.w + 3.5, p.d * G + 0.6];
+    case "tennis": return [-2.5, -2 * G - 1.6, 26.5, 13 * G + 0.6];
+    case "golfgreen": return [-8, -2.6 * K - 1, 9.6, 4.6 * G];
+    case "suya": return [-1.6, -2.8, 1.8, 0.7];
+    case "barrow": return [-2.6, -1.9, 0.7, 0.6];
     case "civichall": return [-1.5, -(p.h + 5) * K - 2.5, p.w + 1.5 + p.h * 0.5, p.d * G + 3.2];
     case "gatearch": return [-p.span / 2 - 2, -6.2 * K - 1.8, p.span / 2 + 2.4, 0.8];
     default: return [-1, -1.5, 1, 0.5];
@@ -82,12 +90,19 @@ function drawProp(ctx: Ctx, p: PropKind, seed: number, t: number) {
     case "hedge": return drawHedge(ctx, p.w, seed);
     case "flowers": return drawFlowers(ctx, p.w, seed);
     case "stall": return drawStall(ctx, p.goods, p.w ?? 2.8, 2.2, seed);
+    case "plane": return drawPlane(ctx, p.livery);
+    case "tower": return drawControlTower(ctx);
+    case "mosque": return drawMosque(ctx, p.w, p.d);
+    case "tennis": return drawTennisCourt(ctx);
+    case "golfgreen": return drawGolfGreen(ctx, t);
+    case "suya": return drawSuya(ctx, t);
+    case "barrow": return drawWheelbarrow(ctx, p.load);
     case "civichall": return drawCivicHall(ctx, { w: p.w, d: p.d, h: p.h, name: p.name, seed });
-    case "gatearch": return drawGateArch(ctx, p.text, p.span);
+    case "gatearch": return drawGateArch(ctx, p.text, p.span, p.boom ?? true);
   }
 }
 
-const ANIMATED = new Set(["generator", "pots", "chickens", "biggen"]);
+const ANIMATED = new Set(["generator", "pots", "chickens", "biggen", "golfgreen", "suya"]);
 
 function makeSprite(pxPerM: number, bounds: [number, number, number, number], draw: (ctx: Ctx) => void): Omit<Sprite, "sortY"> {
   const [x0, y0, x1, y1] = bounds;
