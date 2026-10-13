@@ -48,7 +48,7 @@ function makeSprite(pxPerM: number, b: [number, number, number, number], draw: (
 }
 
 type Roadside =
-  | { kind: "building"; x: number; spec: BuildingSpec }
+  | { kind: "building"; x: number; spec: BuildingSpec; template: number }
   | { kind: "tree" | "palm" | "pole" | "umbrella"; x: number; y: number; seed: number }
   | { kind: "stopsign"; x: number; y: number; text: string }
   | { kind: "person"; x: number; y: number; who: string; dir: "S" | "N" | "E" | "W" };
@@ -90,13 +90,11 @@ export default function RoadRun({
     const r = rng(seed * 7 + 3);
     const s = createDrive(corridor, stopNames, { autopilot, seed });
     const out: Roadside[] = [];
-    for (let x = -30; x < s.length + 60; ) {
+    // ten building designs reused along the road: each is drawn once, not once per building
+    const templates: BuildingSpec[] = Array.from({ length: 10 }, () => {
       const w = 7 + r() * 8;
       const shop = r() < 0.55;
-      out.push({
-        kind: "building",
-        x,
-        spec: {
+      return {
           w, d: 6, h: 3 + (r() < 0.2 ? 2.8 : 0), roof: shop ? "shed" : r() < 0.5 ? "hip" : "gable",
           wall: PAL.plaster[Math.floor(r() * PAL.plaster.length)], wallKind: r() < 0.15 ? "block" : "plaster",
           rust: 0.5 + r() * 0.5, seed: Math.floor(r() * 1e6), storeys: r() < 0.2 ? 2 : 1,
@@ -104,9 +102,14 @@ export default function RoadRun({
           openings: shop
             ? [{ x: 0.5, kind: "shopfront", width: w / 2 - 0.8 }, { x: w / 2 + 0.3, kind: "shopfront", width: w / 2 - 0.8 }]
             : [{ x: 1, kind: "louvre" }, { x: w / 2 - 0.45, kind: "door", curtain: "#7a2a35" }, { x: w - 2.2, kind: "louvre" }],
-        },
-      });
-      x += w + 0.6 + r() * 2;
+      };
+    });
+    for (let x = -30, last = -1; x < s.length + 60; ) {
+      let t = Math.floor(r() * templates.length);
+      if (t === last) t = (t + 1) % templates.length; // no two identical neighbours
+      last = t;
+      out.push({ kind: "building", x, spec: templates[t], template: t });
+      x += templates[t].w + 0.6 + r() * 2;
     }
     for (let x = 0; x < s.length + 40; x += 9 + r() * 10) {
       const roll = r();
@@ -163,19 +166,33 @@ export default function RoadRun({
     const sprites = new Map<number, Sprite>();
     let groundTile: Sprite | null = null;
     let hudT = 0;
+    // rules run in fixed 1/60 s steps on real time, so slow frames never slow the game down
+    const STEP = 1 / 60;
+    let acc = 0;
 
     const frame = (now: number) => {
       const s = sim.current;
       if (!s) { raf = requestAnimationFrame(frame); return; }
-      const dt = Math.min(0.05, (now - last) / 1000);
+      const dt = Math.min(0.25, (now - last) / 1000);
       last = now;
       setTilt(TILT_STREET);
 
       // ---- rules
-      const inp = autopilot ? autopilotInput(s) : { ...input.current };
-      input.current.stop = false;
-      input.current.honk = false;
-      for (const e of stepDrive(s, inp, dt)) {
+      acc += dt;
+      const events = [];
+      let first = true;
+      while (acc >= STEP) {
+        acc -= STEP;
+        const inp = autopilot ? autopilotInput(s) : { ...input.current };
+        if (!first) { inp.stop = false; inp.honk = false; }
+        first = false;
+        events.push(...stepDrive(s, inp, STEP));
+      }
+      if (!first) {
+        input.current.stop = false;
+        input.current.honk = false;
+      }
+      for (const e of events) {
         if (e.type === "hazard") cb.current.onHazard(e.kind);
         else if (e.type === "bay") cb.current.onBay(e.ok, e.name);
         else if (e.type === "honk") cb.current.onHonk(e.cleared ? `📯 PÒÒN!! The ${e.cleared} moves out of your lane. Conductor hails you.` : "📯 PÒÒN!! Nobody moved. Everybody looks at you.");
@@ -266,11 +283,11 @@ export default function RoadRun({
       // north building fronts (cached sprites)
       roadside.forEach((it, i) => {
         if (it.kind !== "building" || !visible(it.x, it.spec.w + 4)) return;
-        let sp = sprites.get(i);
+        let sp = sprites.get(it.template);
         if (!sp) {
           const spec = it.spec;
           sp = makeSprite(ppm * dpr, [-1, -(spec.h + 3) * K - 1, spec.w + 1 + spec.h * 0.5, spec.d * G + 0.7], (c) => drawBuilding(c, spec));
-          sprites.set(i, sp);
+          sprites.set(it.template, sp);
         }
         ctx.drawImage(sp.canvas, it.x + sp.x0, (FRONT_N - it.spec.d) * G + sp.y0, sp.w, sp.h);
       });

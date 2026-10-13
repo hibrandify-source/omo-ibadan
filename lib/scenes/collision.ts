@@ -22,6 +22,7 @@ export function propBlock(p: PropKind): Rect | null {
     case "biggen": return { x: -1.3, y: -0.55, w: 2.6, h: 1.1 };
     case "hedge": return { x: 0, y: -0.4, w: p.w, h: 0.5 };
     case "flowers": return { x: 0, y: -0.6, w: p.w, h: 0.6 };
+    case "civichall": return { x: 0, y: 0, w: p.w, h: p.d + 2.6 };
     case "stall": return { x: -(p.w ?? 2.8) / 2, y: -2.2, w: p.w ?? 2.8, h: 2.2 };
     default: return null;
   }
@@ -29,6 +30,12 @@ export function propBlock(p: PropKind): Rect | null {
 
 export function sceneBlockers(scene: SceneDef): Rect[] {
   const r: Rect[] = [];
+  // gate arches block only their two pillars
+  for (const p of scene.props) {
+    if (p.spec.kind !== "gatearch") continue;
+    const s = p.spec.span;
+    r.push({ x: p.x - s / 2 - 0.9, y: p.y - 0.45, w: 0.9, h: 0.9 }, { x: p.x + s / 2, y: p.y - 0.45, w: 0.9, h: 0.9 });
+  }
   for (const b of scene.buildings) r.push({ x: b.x, y: b.y, w: b.spec.w, h: b.spec.d });
   for (const f of scene.fences) {
     const segs: [number, number][] = f.gate ? [[f.x0, f.gate.x], [f.gate.x + f.gate.w, f.x1]] : [[f.x0, f.x1]];

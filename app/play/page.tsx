@@ -874,6 +874,12 @@ export default function Home() {
       setDoorOpen(shared);
       return;
     }
+    if (id === "mapo-view") {
+      setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 12) }));
+      push("🌇 From Mapo hill, rusted roofs run all the way to the horizon. Fun +12. This is Ibadan.");
+      spendMinutes(MINUTES.greet * 2);
+      return;
+    }
     if (id === "micra-rank") {
       setTab("hustle");
       window.scrollTo({ top: 0 });

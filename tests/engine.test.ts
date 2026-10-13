@@ -303,6 +303,8 @@ describe("Micra Rush on real corridors", () => {
     expect(ev.filter((e) => e.type === "bay").every((e) => e.type === "bay" && e.ok)).toBe(true);
     expect(ev.filter((e) => e.type === "bay")).toHaveLength(corridor.stops.length - 1);
     expect(ev.some((e) => e.type === "hazard")).toBe(false);
+    // a passenger ride must stay short (the E2E test waits up to 60 s of real time)
+    expect(s.t).toBeLessThan(30);
   });
 
   it("a driver who never stops misses every bay", () => {

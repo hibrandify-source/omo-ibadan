@@ -158,7 +158,8 @@ export function stepDrive(s: DriveState, input: DriveInput, dt: number): DriveEv
   if (s.autopilot && input.brake) target = 0;
   if (s.autopilot) {
     const next = s.bays.find((b) => !b.done);
-    if (next && next.x - s.x < 40 && next.x - s.x > -2) target = Math.min(target, 4 + (next.x - s.x) * 0.6);
+    // as a passenger, the approach to each stop is brisk; the stop itself is real
+    if (next && next.x - s.x < 40 && next.x - s.x > -2) target = Math.min(target, 9 + (next.x - s.x) * 1.4);
   }
   if (s.dwell > 0) {
     s.dwell -= dt;
@@ -215,6 +216,7 @@ export function stepDrive(s: DriveState, input: DriveInput, dt: number): DriveEv
     if (input.stop && Math.abs(bay.x - s.x) < BAY_WINDOW && s.lane < 0.45) {
       bay.done = true;
       s.dwell = DWELL;
+      if (s.autopilot) s.dwell = DWELL / 2;
       ev.push({ type: "bay", ok: true, name: bay.name });
     } else if (s.x > bay.x + BAY_WINDOW) {
       bay.done = true;

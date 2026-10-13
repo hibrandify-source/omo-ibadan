@@ -367,6 +367,84 @@ function mixRust(rust: number): string {
   return mixHex(PAL.zinc, PAL.rust[1], Math.max(0, Math.min(1, rust)));
 }
 
+// ---------------------------------------------------------------- landmarks
+
+/**
+ * A colonial civic hall (Mapo Hall): white walls, tall shuttered windows, a
+ * columned portico with a pediment, wide steps. Origin NW corner of the
+ * main block; the portico projects forward of the front wall.
+ */
+export function drawCivicHall(ctx: Ctx, opts: { w: number; d: number; h: number; name: string; seed: number }) {
+  const { w, d, h, name, seed } = opts;
+  drawBuilding(ctx, {
+    w, d, h, roof: "hip", rise: 2.4, wall: "#efeae0", wallKind: "plaster", rust: 0.35, seed, storeys: 2,
+    openings: Array.from({ length: Math.floor(w / 2.4) }, (_, i) => ({ x: 0.9 + i * 2.4, kind: "shutter" as const, width: 1.1 })),
+  });
+  const D = d * G;
+  const pw = w * 0.36;
+  const px = (w - pw) / 2;
+  const front = D + 2.2 * G; // portico projects 2.2 m
+  const colH = h * 0.86 * K;
+  // steps
+  for (let i = 0; i < 4; i++) {
+    ctx.fillStyle = shade("#d9d4c8", -i * 0.04);
+    ctx.fillRect(px - 0.6 - i * 0.3, front + i * 0.14, pw + 1.2 + i * 0.6, 0.16);
+  }
+  // portico floor and back shadow
+  ctx.fillStyle = "#cfc9bc";
+  ctx.fillRect(px, D, pw, front - D);
+  // columns
+  const n = 6;
+  for (let i = 0; i < n; i++) {
+    const cx = px + 0.3 + (i * (pw - 0.6)) / (n - 1);
+    const g = ctx.createLinearGradient(cx - 0.22, 0, cx + 0.22, 0);
+    g.addColorStop(0, "#fbf8f1");
+    g.addColorStop(0.6, "#e3ddd0");
+    g.addColorStop(1, "#bdb6a8");
+    ctx.fillStyle = g;
+    ctx.fillRect(cx - 0.22, front - colH, 0.44, colH);
+    ctx.fillStyle = "#e9e4d9";
+    ctx.fillRect(cx - 0.3, front - colH - 0.1, 0.6, 0.12);
+    ctx.fillRect(cx - 0.3, front - 0.12, 0.6, 0.12);
+  }
+  // entablature + pediment
+  const top = front - colH - 0.1;
+  ctx.fillStyle = "#f3efe6";
+  ctx.fillRect(px - 0.3, top - 0.55, pw + 0.6, 0.55);
+  label(ctx, name, px + pw / 2, top - 0.28, 0.32, "#5a4330", 900);
+  poly(ctx, [px - 0.4, top - 0.55, px + pw / 2, top - 0.55 - 1.6, px + pw + 0.4, top - 0.55]);
+  ctx.fillStyle = "#f6f2ea";
+  ctx.fill();
+  ctx.strokeStyle = "#bdb6a8";
+  ctx.lineWidth = 0.05;
+  ctx.stroke();
+  oval(ctx, px + pw / 2, top - 1.05, 0.32, 0.32); // crest roundel
+  ctx.fillStyle = "#1f6b4a";
+  ctx.fill();
+}
+
+/** A campus gate: two pillars, a beam with the name, a security post. Origin = centre of the gateway on the ground. */
+export function drawGateArch(ctx: Ctx, text: string, span = 9) {
+  const h = 6.2 * K;
+  for (const x of [-span / 2 - 0.9, span / 2]) {
+    ctx.fillStyle = "#c9c1b1";
+    ctx.fillRect(x, -h, 0.9, h);
+    ctx.fillStyle = "#b0a796";
+    ctx.fillRect(x + 0.6, -h, 0.3, h);
+    ctx.fillStyle = "rgba(25,12,6,0.22)";
+    ctx.fillRect(x + 0.9, -0.1, 1.2, 0.35);
+  }
+  ctx.fillStyle = "#1f3d6b";
+  ctx.fillRect(-span / 2 - 1.2, -h - 1.1, span + 2.4, 1.1);
+  ctx.strokeStyle = "#c9a24a";
+  ctx.lineWidth = 0.08;
+  ctx.strokeRect(-span / 2 - 1.2, -h - 1.1, span + 2.4, 1.1);
+  label(ctx, text, 0, -h - 0.55, 0.55, "#f3efe4", 900);
+  // the boom barrier, raised
+  line(ctx, span / 2 - 0.2, -1.0 * K, span / 2 - 1.4, -4.2 * K, "#d23b2a", 0.12);
+  line(ctx, span / 2 - 0.5, -1.7 * K, span / 2 - 0.9, -2.9 * K, "#f2efe6", 0.12);
+}
+
 // ---------------------------------------------------------------- fences + gates
 
 export interface FenceSpec {

@@ -23,6 +23,8 @@ export type PropKind =
   | { kind: "biggen"; running: boolean } // soundproof house generator
   | { kind: "hedge"; w: number }
   | { kind: "flowers"; w: number }
+  | { kind: "civichall"; w: number; d: number; h: number; name: string } // origin NW corner
+  | { kind: "gatearch"; text: string; span: number } // origin centre of the gateway
   | { kind: "stall"; goods: "pepper" | "tomato" | "onion" | "yam" | "fabric" | "grains" | "fish" | "soup" | "provisions"; w?: number };
 
 export interface Placed<T> {

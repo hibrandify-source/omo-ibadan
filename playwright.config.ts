@@ -8,7 +8,8 @@ export default defineConfig({
   retries: 0,
   reporter: [["list"]],
   use: {
-    baseURL: "http://localhost:3000",
+    // own port, so tests never hit another dev server running on 3000
+    baseURL: "http://localhost:3100",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -18,8 +19,8 @@ export default defineConfig({
     { name: "mobile", use: { ...devices["Pixel 7"] } },
   ],
   webServer: {
-    command: "npm run dev",
-    port: 3000,
+    command: "npm run dev -- -p 3100",
+    port: 3100,
     reuseExistingServer: true,
     timeout: 120_000,
   },

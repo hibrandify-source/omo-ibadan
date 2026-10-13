@@ -7,7 +7,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { G, K, TILT_STREET, setTilt, type Ctx, type Dir } from "@/lib/art/core";
-import { drawBuilding, drawFence, drawGenerator, drawKiosk, drawWaterTank } from "@/lib/art/buildings";
+import { drawBuilding, drawCivicHall, drawFence, drawGateArch, drawGenerator, drawKiosk, drawWaterTank } from "@/lib/art/buildings";
 import { drawBench, drawLaterite, drawLawn, drawPalm, drawPaving, drawPole, drawRoad, drawSignboard, drawTree, drawUmbrellaStall } from "@/lib/art/ground";
 import { drawBigGen, drawBooth, drawChickens, drawDrum, drawFlowers, drawHedge, drawPots, drawStall } from "@/lib/art/props";
 import { CARS, drawCar } from "@/lib/art/vehicles";
@@ -56,6 +56,8 @@ function propBounds(p: PropKind): [number, number, number, number] {
     case "hedge": return [-0.2, -1.4, p.w + 0.3, 0.5];
     case "flowers": return [-0.2, -0.9, p.w + 0.2, 0.2];
     case "stall": return [-(p.w ?? 2.8) / 2 - 0.4, -4.2, (p.w ?? 2.8) / 2 + 0.4, 0.5];
+    case "civichall": return [-1.5, -(p.h + 5) * K - 2.5, p.w + 1.5 + p.h * 0.5, p.d * G + 3.2];
+    case "gatearch": return [-p.span / 2 - 2, -6.2 * K - 1.8, p.span / 2 + 2.4, 0.8];
     default: return [-1, -1.5, 1, 0.5];
   }
 }
@@ -80,6 +82,8 @@ function drawProp(ctx: Ctx, p: PropKind, seed: number, t: number) {
     case "hedge": return drawHedge(ctx, p.w, seed);
     case "flowers": return drawFlowers(ctx, p.w, seed);
     case "stall": return drawStall(ctx, p.goods, p.w ?? 2.8, 2.2, seed);
+    case "civichall": return drawCivicHall(ctx, { w: p.w, d: p.d, h: p.h, name: p.name, seed });
+    case "gatearch": return drawGateArch(ctx, p.text, p.span);
   }
 }
 
