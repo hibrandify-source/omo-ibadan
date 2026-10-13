@@ -4,7 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import {
   ECONOMY,
   HOODS,
-  LIFE_EVENTS,
+  LEGACY_MAX_AGE,
+  LECTURES_PER_YEAR,
+  SCHOOLS,
+  defaultLife,
+  personById,
+  storyletById,
+  type LifeState,
+  type SeasonFocus,
   MAP_NODES,
   MISSIONS,
   DISTRICT_DEEDS,
@@ -54,7 +61,24 @@ import {
   decayNeeds,
   examQuestion,
   titleFor,
+  titleIndex,
 } from "@/lib/engine/day";
+import {
+  applyFx,
+  askOut,
+  careerDoors,
+  fillStory,
+  hangOut,
+  legacyReport,
+  propose,
+  skipSeason,
+  talkBond,
+  wed,
+  type Legacy,
+} from "@/lib/engine/life";
+import LifePanel from "@/components/LifePanel";
+import PeoplePanel from "@/components/PeoplePanel";
+import LegacyModal from "@/components/LegacyModal";
 import {
   MINUTES,
   WAKE_MINUTE,
@@ -317,6 +341,11 @@ export default function Home() {
   const [doorOpen, setDoorOpen] = useState<Door | null>(null);
   const [npc, setNpc] = useState<Record<string, { meets: number }>>({});
   const [journal, setJournal] = useState<{ day: number; text: string }[]>([]);
+  // the long life: school, people, milestones, legacy (lib/engine/life)
+  const [life, setLife] = useState<LifeState>(defaultLife);
+  const [legacy, setLegacy] = useState<Legacy | null>(null);
+  const [seasonFocus, setSeasonFocus] = useState<SeasonFocus>("work");
+  const doors = careerDoors(life, bg.connections);
 
   const meet = (name: string, n = 1) =>
     setNpc((m) => ({ ...m, [name]: { meets: (m[name]?.meets ?? 0) + n } }));
@@ -373,7 +402,11 @@ export default function Home() {
     setMinute(s.minute);
     minuteRef.current = s.minute;
     setWeather(s.weather);
-    setEvent(LIFE_EVENTS.find((e) => e.id === s.eventId) ?? null);
+    setLife(s.life);
+    {
+      const st = storyletById(s.eventId);
+      setEvent(st ? fillStory(st, { day: s.day, bg: s.bgId ?? "omo-iya-lobe", ola: s.ola, bond: s.bond, careerId: s.careerId, title: titleIndex(s.ola, s.iwa), life: s.life }) : null);
+    }
     setMicraRuns(s.micraRuns);
     setTrades(s.trades);
     setExamPass(s.examPass);
@@ -417,7 +450,7 @@ export default function Home() {
     visits, done, claimedDaily, hoods, myHood,
     avatarZone, home, travelMode, wardrobe, equipped,
     npc, journal, shopGreets, viewDay, lastGreetDay, lastFreshDay, lastToiletDay,
-    skills, careerId, careerLevels, lastShiftDay, walkWeek, walkDay,
+    skills, careerId, careerLevels, lastShiftDay, walkWeek, walkDay, life,
   };
   // stable string of the save; changes exactly when progress changes
   const body = saveBody(migrateSave(current)!);
@@ -657,7 +690,11 @@ export default function Home() {
   };
 
   const startDay = (nd: number) => {
-    const r = advanceDay({ day: nd, bg, bond, needs, trait, paidObligations, eventPending: !!event });
+    const r = advanceDay({
+      day: nd, bg, bond, needs, trait, paidObligations, eventPending: !!event,
+      life, ola, careerId, examPass, brain: skills.brain?.level ?? 0, title: titleIndex(ola, iwa),
+    });
+    setLife(r.life);
     setDay(nd);
     setWeather("clear");
     setNeeds((n) => decayNeeds(n, trait));
@@ -762,6 +799,12 @@ export default function Home() {
     if (o.bond) setBond((b) => Math.max(0, Math.min(100, b + (o.bond ?? 0))));
     setIwa((v) => Math.max(0, Math.min(100, v + o.iwa)));
     setEnergy((e) => Math.max(5, Math.min(100, e + o.energy)));
+    if (o.fx) {
+      const fx = o.fx;
+      setLife((l) => applyFx(l, fx, day));
+      if (fx.fun || fx.social) setNeeds((n) => ({ ...n, fun: Math.max(0, Math.min(100, n.fun + (fx.fun ?? 0))), social: Math.max(0, Math.min(100, n.social + (fx.social ?? 0))) }));
+      if (fx.milestone) jot(`Day ${day}: ${fx.milestone}.`);
+    }
     if (ev.id === "family" && optIdx === 0) {
       setFamilyCount((n) => n + 1);
     setNeeds((n) => ({ ...n, social: Math.min(100, n.social + 10) }));
@@ -868,6 +911,11 @@ export default function Home() {
 
   // ---- walkable scene actions ----
   const sceneDoor = (id: string) => {
+    // students attend lectures at their own school's hall
+    if (life.edu.stage === "student" && ((id === "exam-hall" && life.edu.school === "poly") || (id === "door-uihall" && life.edu.school === "ui"))) {
+      attendLecture();
+      return;
+    }
     // shared doors (market trading, Mama Put's stall) open the same panels as before
     const shared = DOORS.find((d) => d.id === id);
     if (shared) {
@@ -1000,7 +1048,7 @@ export default function Home() {
       if (energy < 20) { push("🖨️ Too tired to stand at the machine. Chop or rest first."); return; }
       setEnergy((e) => Math.max(5, e - 12));
       addSkill("hustle", 10);
-      meet("Printer boy");
+      meet("Femi");
       earn(PRICES.printShift, 1, `🖨️ You bound twelve final-year projects at Agbowo: +${naira(PRICES.printShift)}, Hustle +10 XP.`, undefined, 180);
       return;
     }
@@ -1090,8 +1138,134 @@ export default function Home() {
       spendMinutes(MINUTES.shop);
     }
   };
+  // ---- the long life: lectures, people, seasons, legacy ----
+  const attendLecture = () => {
+    const school = life.edu.school;
+    if (!school) return;
+    const part = partOfDay(minuteRef.current);
+    if (part !== "morning" && part !== "afternoon") { push("📚 Lectures are over for today. Come back in the morning."); return; }
+    if (life.seen.lecture === day) { push("📚 You've done today's lectures. Read at home tonight."); return; }
+    if (energy < 15) { push("📚 Too tired to sit through lectures. Chop or rest first."); return; }
+    const n = life.edu.attended + 1;
+    setLife((l) => ({ ...l, seen: { ...l.seen, lecture: day }, edu: { ...l.edu, attended: l.edu.attended + 1 } }));
+    setEnergy((e) => Math.max(5, e - 10));
+    addSkill("brain", 12);
+    push(`📚 Lectures at ${SCHOOLS[school].short}: ${n}/${LECTURES_PER_YEAR} this session. Brain +12 XP.`);
+    spendMinutes(4 * 60);
+  };
+
+  const hangOutWith = (id: string) => {
+    const p = personById(id);
+    if (!p) return;
+    if (avatarZone !== p.zone) { push(`${id} is at ${p.zoneLabel}. Go there first.`); return; }
+    if (partOfDay(minuteRef.current) === "night") { push(`It's late. ${id} has gone home.`); return; }
+    if (ola < p.hangout.cost) { push(`${p.hangout.label} costs ${naira(p.hangout.cost)}. You hold ${naira(ola)}.`); return; }
+    const r = hangOut(life, id, day);
+    setLife(r.life);
+    setOla((o) => o - p.hangout.cost);
+    meet(id);
+    setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + p.hangout.fun), social: Math.min(100, n.social + 15) }));
+    push(`🤝 ${p.hangout.label}${p.hangout.cost ? ` (−${naira(p.hangout.cost)})` : ""}. Bond with ${id} +${r.gained}.`);
+    spendMinutes(p.hangout.minutes);
+  };
+
+  const askOutPerson = (id: string) => {
+    const r = askOut(life, id, day, iwa);
+    setLife(r.life);
+    if (r.yes) {
+      jot(`Day ${day}: started dating ${id}.`);
+      push(`💌 ${id} said yes! You're dating now. Keep showing up.`);
+    } else {
+      push(`💔 ${id} smiled, but said "let's stay friends for now". Bond −8. Give it time.`);
+    }
+    spendMinutes(MINUTES.greet * 3);
+  };
+
+  const proposeTo = (id: string) => {
+    const r = propose(life, id, day, ola);
+    if (!r.cost) return;
+    setLife(r.life);
+    setOla((o) => o - r.cost);
+    setIwa((v) => Math.min(100, v + 5));
+    setBond((b) => Math.min(100, b + 8));
+    jot(`Day ${day}: engaged to ${id}. Introduction ceremony done.`);
+    push(`💍 ${id} said yes! Your family visited theirs with kola, drinks and gifts (−${naira(r.cost)}). Now, the wedding.`);
+    spendMinutes(6 * 60);
+  };
+
+  const weddingWith = (id: string) => {
+    const r = wed(life, id, day, ola, bg.id, bond);
+    if (!r.cost) return;
+    setLife(r.life);
+    setOla((o) => o - r.cost);
+    setIwa((v) => Math.min(100, v + 8));
+    setBond((b) => Math.min(100, b + 10));
+    setNeeds((n) => ({ ...n, fun: 100, social: 100 }));
+    jot(`Day ${day}: married ${id}.`);
+    push(`💒 Traditional engagement, then the reception at a hall on Ring Road. Aso-ebi everywhere, money sprayed like rain (−${naira(r.cost)}). You're married to ${id}.`);
+    spendMinutes(10 * 60);
+  };
+
+  const moveOnSeason = () => {
+    if (event || life.ended) return;
+    const c = CAREERS.find((x) => x.id === careerId) ?? null;
+    const level = c ? careerLevels[c.id] ?? entryLevel(c.id, doors) : 0;
+    const r = skipSeason({
+      day, bg, ola, iwa, bond, careerId, careerSkill: c?.skill ?? null, careerPay: c ? careerPay(c.id, level) : 0,
+      title: titleIndex(ola, iwa), life, focus: seasonFocus, examPass, brain: skills.brain?.level ?? 0,
+    });
+    let nextLife = r.life;
+    setDay(r.toDay);
+    minuteRef.current = WAKE_MINUTE;
+    setMinute(WAKE_MINUTE);
+    setOla((o) => Math.max(0, o + r.olaDelta));
+    setIwa((v) => Math.max(0, Math.min(100, v + r.iwaDelta)));
+    setBond((b) => Math.max(0, Math.min(100, b + r.bondDelta)));
+    setEnergy(80);
+    setNeeds((n) => ({ ...n, hunger: 70, fun: Math.max(n.fun, 50), social: Math.max(n.social, 50), hygiene: 70, toilet: 80 }));
+    r.xp.forEach((x) => addSkill(x.skill, x.amount));
+    setWeather("clear");
+    for (const l of [...r.lines].reverse()) push(l);
+    jot(`Day ${r.toDay}: a season passed (${seasonFocus}).`);
+    if (r.stoppedFor) {
+      const st = storyletById(r.stoppedFor);
+      if (st) {
+        setEvent(fillStory(st, { day: r.toDay, bg: bg.id, ola: Math.max(0, ola + r.olaDelta), bond, careerId, title: titleIndex(ola, iwa), life: r.life }));
+        nextLife = { ...r.life, seen: { ...r.life.seen, [st.id]: r.toDay } };
+      }
+    }
+    setLife(nextLife);
+    window.scrollTo({ top: 0 });
+  };
+
+  const writeLegacy = () => {
+    const c = CAREERS.find((x) => x.id === careerId) ?? null;
+    const report = legacyReport({
+      day, bg, ola, iwa, bond, title: titleIndex(ola, iwa), titleName: title,
+      careerName: c?.name ?? null, careerLevel: c ? careerLevels[c.id] ?? entryLevel(c.id, doors) : 0,
+      homeTier: home.tier, visits: visits.length, life,
+    });
+    setLegacy(report);
+    if (!life.ended) {
+      setLife((l) => ({ ...l, ended: true }));
+      jot(`Day ${day}: wrote your legacy. ${report.verdict}.`);
+    }
+  };
+
+  // at 38 the story closes on its own
+  useEffect(() => {
+    if (started && !life.ended && !event && ageOn(day) >= LEGACY_MAX_AGE) writeLegacy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day, started, event]);
+
+  const startNewLife = () => {
+    try { localStorage.removeItem(SAVE_KEY); } catch {}
+    window.location.reload();
+  };
+
   const sceneTalk = (npcId: string, line: string) => {
     meet(npcId);
+    if (personById(npcId)) setLife((l) => talkBond(l, npcId, day).life);
     setNeeds((n) => ({ ...n, social: Math.min(100, n.social + 6) }));
     push(`💬 ${npcId}: "${line}"`);
     spendMinutes(MINUTES.greet);
@@ -1150,7 +1324,7 @@ export default function Home() {
       push(`💼 ${c.workplace} shift starts at ${formatTime(c.shiftHour * 60)}. It's ${formatTime(minuteRef.current)} now.`);
       return;
     }
-    const level = careerLevels[c.id] ?? entryLevel(c.id, bg.connections);
+    const level = careerLevels[c.id] ?? entryLevel(c.id, doors);
     const pay = careerPay(c.id, level);
     setLastShiftDay(day);
     // a shift costs 20⚡ in total: 15 here + 5 from earn()
@@ -1162,7 +1336,7 @@ export default function Home() {
   const promote = () => {
     const c = CAREERS.find((x) => x.id === careerId);
     if (!c) return;
-    const level = careerLevels[c.id] ?? entryLevel(c.id, bg.connections);
+    const level = careerLevels[c.id] ?? entryLevel(c.id, doors);
     if (level >= 5) {
       push(`👑 ${c.name}: you don reach the top — ${c.levels[4].title}. Legend.`);
       return;
@@ -1657,6 +1831,8 @@ export default function Home() {
 
         {/* Town feed lives in the sidebar below */}
 
+        {legacy && <LegacyModal legacy={legacy} name={username} onClose={() => setLegacy(null)} onNewLife={startNewLife} />}
+
         {/* Life-event modal (NEPA / rain / family / rent) */}
         {event && (
           <div className="fixed inset-0 z-30 flex items-center justify-center bg-charcoal/70 p-4 backdrop-blur-sm">
@@ -1901,7 +2077,7 @@ export default function Home() {
                 </div>
                 {(() => {
                   const c = CAREERS.find((x) => x.id === careerId);
-                  const level = c ? (careerLevels[c.id] ?? entryLevel(c.id, bg.connections)) : 1;
+                  const level = c ? (careerLevels[c.id] ?? entryLevel(c.id, doors)) : 1;
                   const next = c && level < 5 ? c.levels[level] : null;
                   const haveXp = c ? (skills[c.skill]?.level ?? 0) : 0;
                   return (
@@ -1912,7 +2088,7 @@ export default function Home() {
                           setCareerId(e.target.value || null);
                           const nc = CAREERS.find((x) => x.id === e.target.value);
                           if (nc) {
-                            const lv = careerLevels[nc.id] ?? entryLevel(nc.id, bg.connections);
+                            const lv = careerLevels[nc.id] ?? entryLevel(nc.id, doors);
                             const via = lv > 1 ? (bg.id === "alowonle" ? " Daddy made a call." : " Mama's people vouched for you.") : "";
                             push(`💼 You sign up as ${nc.levels[lv - 1].title} — ${nc.name} @ ${nc.workplace}. Shift pays ${naira(nc.levels[lv - 1].pay)}.${via}`);
                           }
@@ -1922,7 +2098,7 @@ export default function Home() {
                         <option value="">— Pick your hustle —</option>
                         {CAREERS.map((x) => (
                           <option key={x.id} value={x.id} className="text-charcoal">
-                            {x.name} · {x.workplace} · {naira(x.levels[entryLevel(x.id, bg.connections) - 1].pay)}/shift{bg.connections.includes(x.id) ? " · connection" : ""}
+                            {x.name} · {x.workplace} · {naira(x.levels[entryLevel(x.id, doors) - 1].pay)}/shift{doors.includes(x.id) ? (bg.connections.includes(x.id) ? " · connection" : " · your degree/letter") : ""}
                           </option>
                         ))}
                       </select>
@@ -2147,6 +2323,30 @@ export default function Home() {
           )}
           {tab === "story" && (
             <div className="space-y-3">
+            <LifePanel
+              age={ageOn(day)}
+              day={day}
+              life={life}
+              eventPending={!!event}
+              focus={seasonFocus}
+              onFocus={setSeasonFocus}
+              onSkip={moveOnSeason}
+              onLegacy={writeLegacy}
+              onViewLegacy={writeLegacy}
+            />
+            <PeoplePanel
+              life={life}
+              bgId={bg.id}
+              bond={bond}
+              ola={ola}
+              day={day}
+              zone={avatarZone}
+              daytime={partOfDay(minute) !== "night"}
+              onHangOut={hangOutWith}
+              onAskOut={askOutPerson}
+              onPropose={proposeTo}
+              onWed={weddingWith}
+            />
             {(() => {
               const hunt = DAILY_HUNTS[new Date().getDay()];
               const today = new Date().toDateString();

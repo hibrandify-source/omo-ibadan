@@ -44,7 +44,7 @@ export interface Background {
   compound: "courtyard" | "gra";
   outfit: string;
   hasCar: boolean;
-  /** paid every 7 days while bond >= allowanceMinBond */
+  /** paid every 7 days while bond >= allowanceMinBond, and only while you study, serve, or work in the family circle */
   allowancePerWeek: number;
   allowanceMinBond: number;
   /** naira drained every in-game day */
@@ -109,7 +109,7 @@ export const BACKGROUNDS: Record<BackgroundId, Background> = {
     story:
       "You live in your father's house in Old Bodija, with a gateman, a generator that never sleeps, and a car with your name on the papers. Daddy pays your allowance, as long as you stay on his good side. Cousins call more than friends do, and everyone expects you to be somebody.",
     odds: 0.2,
-    pocket: 250000,
+    pocket: 150000,
     iwa: 45,
     energy: 80,
     bond: 55,
@@ -119,9 +119,12 @@ export const BACKGROUNDS: Record<BackgroundId, Background> = {
     compound: "gra",
     outfit: "#3b5bd6",
     hasCar: true,
-    allowancePerWeek: 60000,
+    allowancePerWeek: 40000,
     allowanceMinBond: 40,
-    dailyUpkeep: [{ label: "Car fuel", amount: PRICES.transport.carFuelPerDay }],
+    dailyUpkeep: [
+      { label: "Car fuel", amount: PRICES.transport.carFuelPerDay },
+      { label: "data and outings", amount: PRICES.lifestylePerDay },
+    ],
     family: [
       { id: "daddy", name: "Chief Adeyemi", role: "Father", blurb: "Contractor. Built half of Ring Road's plazas. Expects a successor." },
       { id: "mummy", name: "Mummy", role: "Mother", blurb: "Runs a fabric business at Gbagi. Hosts every owambe that matters." },
@@ -137,7 +140,7 @@ export const BACKGROUNDS: Record<BackgroundId, Background> = {
       "Comfort: home is always stocked and powered",
     ],
     pressures: [
-      "Allowance stops if Daddy's approval falls too low",
+      "Allowance stops if Daddy's approval falls too low, and ends when school does",
       "Daily car fuel and a lifestyle to keep up",
       "Low Iwa: people assume you're spoilt until you prove otherwise",
       "Relatives and hangers-on want their share",

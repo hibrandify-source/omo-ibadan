@@ -221,7 +221,7 @@ export const AGBOWO: SceneDef = {
   exits: [agbowoStop.exit, ...roadEnds(62, 40, { to: "ui-gate", label: "Walk to UI gate" }, { to: "bodija", label: "Walk to Bodija" })],
   npcs: [
     {
-      id: "Printer boy",
+      id: "Femi",
       cast: "uiStudent",
       at: { morning: { x: 24, y: 16.2, dir: "S", doing: "binding projects" }, afternoon: { x: 24, y: 16.2, dir: "S", doing: "fixing the photocopier" } },
       lines: { any: ["Every UI final-year passes through Agbowo to bind their project. Sometimes we need extra hands."] },

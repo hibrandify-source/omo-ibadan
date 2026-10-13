@@ -91,7 +91,7 @@ export const RING_ROAD: SceneDef = {
       lines: { any: ["Open your bag small. Thank you, enjoy your shopping."] },
     },
     {
-      id: "Shopper",
+      id: "Kemi",
       cast: "alowonleGirl",
       at: { afternoon: { x: 26, y: 18, dir: "E", doing: "carrying shopping bags" }, evening: { x: 26, y: 18, dir: "E", doing: "waiting for her ride" } },
       lines: { any: ["The Palms on Saturday is the only place to be seen in Ibadan."] },
@@ -217,7 +217,7 @@ export const SANGO: SceneDef = {
   exits: [sangoStop.exit, ...roadEnds(62, 40, { to: "mokola", label: "Walk down Oyo Road to Mokola" }, { to: "ui-gate", label: "Walk up Oyo Road to UI" })],
   npcs: [
     {
-      id: "Poly student",
+      id: "Tobi",
       cast: "uiStudent",
       at: { morning: { x: 27, y: 29, dir: "S", doing: "late for a test" }, afternoon: { x: 46, y: 37.2, dir: "W", doing: "printing a project" }, evening: { x: 33, y: 30, dir: "W", doing: "waiting for a keke" } },
       lines: {

@@ -8,17 +8,19 @@ import {
   EXAM_POOL,
   TITLE_LADDER,
   allowanceDue,
-  eventsFor,
+  defaultLife,
   naira,
   overdueObligations,
   upcomingObligations,
   upkeepFor,
   type Background,
   type LifeEvent,
+  type LifeState,
   type QuizQ,
 } from "@/lib/game";
 import type { Needs } from "./save";
 import { ageOn, calendarFor, isBirthday } from "./clock";
+import { allowanceSupported, lifeDay, markSeen, pickStorylet } from "./life";
 
 /** Chance a new day brings a life event. */
 export const EVENT_CHANCE = 0.75;
@@ -43,6 +45,15 @@ export interface DayInput {
   paidObligations: string[];
   eventPending: boolean;
   rand?: () => number;
+  // the long life (omit in old callers/tests: a fresh life is assumed)
+  life?: LifeState;
+  ola?: number;
+  careerId?: string | null;
+  examPass?: number;
+  /** brain skill level */
+  brain?: number;
+  /** title rung, from titleIndex() */
+  title?: number;
 }
 
 export interface DayResult {
@@ -55,6 +66,7 @@ export interface DayResult {
   messages: string[];
   journal: string[];
   event: LifeEvent | null;
+  life: LifeState;
 }
 
 /** Everything that happens when a new day starts. */
@@ -70,7 +82,14 @@ export function advanceDay(input: DayInput): DayResult {
     messages: [`🌅 ${calendarFor(day).label}. New mercy, new hustle.`],
     journal: [],
     event: null,
+    life: input.life ?? defaultLife(),
   };
+  const careerId = input.careerId ?? null;
+  const lifeR = lifeDay(r.life, day, { examPass: input.examPass ?? 0, brain: input.brain ?? 0, rand });
+  r.life = lifeR.life;
+  r.olaDelta += lifeR.olaDelta;
+  r.messages.push(...lifeR.messages);
+  r.journal.push(...lifeR.journal);
   if (isBirthday(day)) {
     const age = ageOn(day);
     r.messages.push(`🎂 You are ${age} today. Ẹ kú ọdún, ẹ kú ìyẹ́dún!`);
@@ -84,8 +103,11 @@ export function advanceDay(input: DayInput): DayResult {
     r.messages.push(`⛽ ${bg.dailyUpkeep.map((u) => u.label).join(" + ")}: −${naira(upkeep)}.`);
   }
   if (bg.allowancePerWeek > 0 && day % 7 === 0) {
-    const paid = allowanceDue(bg, day, bond);
-    if (paid > 0) {
+    const supported = allowanceSupported(r.life, bg, careerId, day);
+    const paid = supported ? allowanceDue(bg, day, bond) : 0;
+    if (!supported) {
+      r.messages.push("💳 No allowance: Daddy only pays while you study or serve, or work in his circle.");
+    } else if (paid > 0) {
       r.olaDelta += paid;
       r.messages.push(`💳 Daddy's allowance landed: +${naira(paid)}.`);
     } else {
@@ -122,9 +144,13 @@ export function advanceDay(input: DayInput): DayResult {
   if (dn.hygiene <= 15) r.messages.push("🚿 Freshen up — body dey tell.");
   if (dn.toilet <= 15 && dn.toilet > 0) r.messages.push("🚻 Pressed — find toilet now.");
 
-  if (!input.eventPending && rand() < EVENT_CHANCE) {
-    const pool = eventsFor(bg.id);
-    r.event = pool[Math.floor(rand() * pool.length)] ?? null;
+  if (!input.eventPending) {
+    r.event = pickStorylet(
+      { day, bg: bg.id, ola: Math.max(0, (input.ola ?? 0) + r.olaDelta), bond, careerId, title: input.title ?? 0, life: r.life },
+      rand,
+      EVENT_CHANCE,
+    );
+    if (r.event) r.life = markSeen(r.life, r.event.id, day);
   }
   return r;
 }

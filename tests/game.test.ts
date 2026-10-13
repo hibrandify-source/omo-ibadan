@@ -65,8 +65,8 @@ describe("Alowonle money comes with conditions", () => {
     expect(allowanceDue(oil, 7, 100)).toBe(0);
   });
 
-  it("burns fuel every day; Omo Iya Lobe has no upkeep", () => {
-    expect(upkeepFor(alw)).toBe(PRICES.transport.carFuelPerDay);
+  it("burns fuel and lifestyle every day; Omo Iya Lobe has no upkeep", () => {
+    expect(upkeepFor(alw)).toBe(PRICES.transport.carFuelPerDay + PRICES.lifestylePerDay);
     expect(upkeepFor(oil)).toBe(0);
   });
 });

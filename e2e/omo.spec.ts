@@ -356,6 +356,20 @@ test.describe("Omo Ibadan E2E", () => {
     await expect(page.getByText(/Real Ibadan corridors from OpenStreetMap/)).toBeVisible();
   });
 
+  test("Itan: your life and your people; greeting Ada starts a friendship", async ({ page }) => {
+    await startGame(page, "LifeWaka");
+    await page.evaluate(() => (window as unknown as { __omo: { goto: (z: string) => void } }).__omo.goto("ui-gate"));
+    await expect(page.getByRole("img", { name: /walkable street/ })).toBeVisible();
+    await sceneMoveTo(page, 27.4, 29);
+    await page.getByRole("button", { name: /Talk to Ada/ }).click();
+    await openTab(page, "📖 Itan");
+    await expect(page.getByText("Age 18", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Live day by day until Day 15/ })).toBeDisabled();
+    await expect(page.getByRole("heading", { name: /Your people/ })).toBeVisible();
+    await expect(page.getByLabel("Bond 3 of 100")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Suya and gist at the UI gate/ })).toBeEnabled();
+  });
+
   test("no uncaught errors from load through first hustle", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (e) => pageErrors.push(e.message));

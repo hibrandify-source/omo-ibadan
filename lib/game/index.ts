@@ -12,3 +12,5 @@ export * from "./transport";
 export * from "./places";
 export * from "./groceries";
 export * from "./radio";
+export * from "./life";
+export * from "./storylets";

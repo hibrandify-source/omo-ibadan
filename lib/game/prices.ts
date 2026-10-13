@@ -29,6 +29,7 @@ export const PRICES = {
   clinicVisit: 2500, // consultation card + check-up at Jericho
 
   // ---- Personal ----
+  lifestylePerDay: 2500, // an Alowonle's data, outings and "the boys"
   bucketBath: 300, // water + soap for the day
   barberLowcut: 1500,
   viewingCentre: 500, // watch match

@@ -6,13 +6,18 @@
 // what it gets back.
 
 import {
+  REL_ORDER,
   SKILLS,
+  defaultLife,
   emptySkills,
   isBackgroundId,
   backgroundFromLegacyArchetype,
   type BackgroundId,
   type Gender,
+  type EduStage,
   type HoodId,
+  type LifeState,
+  type RelStage,
   type SkillMap,
 } from "@/lib/game";
 import { emptyHome, type HomeSave } from "@/lib/world";
@@ -98,6 +103,8 @@ export interface SaveData {
   // real-world walking
   walkWeek: { key: string; steps: number };
   walkDay: { date: string; steps: number };
+  // the long life: school, people, milestones (lib/game/life)
+  life: LifeState;
 }
 
 const HOOD_IDS: HoodId[] = ["bodija", "agbowo", "challenge", "iwo-road", "ojoo", "beere"];
@@ -162,6 +169,7 @@ export function defaultSave(): SaveData {
     lastShiftDay: 0,
     walkWeek: { key: "", steps: 0 },
     walkDay: { date: "", steps: 0 },
+    life: defaultLife(),
   };
 }
 
@@ -307,6 +315,47 @@ export function migrateSave(input: unknown): SaveData | null {
     lastShiftDay: num(s.lastShiftDay, 0),
     walkWeek: { key: str(walkWeek.key, ""), steps: num(walkWeek.steps, 0) },
     walkDay: { date: str(walkDay.date, ""), steps: num(walkDay.steps, 0) },
+    life: migrateLife(s.life),
+  };
+}
+
+const EDU_STAGES: EduStage[] = ["none", "registered", "awaiting", "admitted", "student", "graduate", "nysc", "served", "dropped"];
+
+/** Validate the long-life block; anything malformed falls back to a fresh life. */
+export function migrateLife(v: unknown): LifeState {
+  const d = defaultLife();
+  if (!isObj(v)) return d;
+  const e = isObj(v.edu) ? v.edu : {};
+  const rel: LifeState["rel"] = {};
+  if (isObj(v.rel)) {
+    for (const [k, r] of Object.entries(v.rel)) {
+      if (!isObj(r) || !REL_ORDER.includes(r.stage as RelStage)) continue;
+      rel[k] = { bond: clamp(r.bond, 0, 0, 100), stage: r.stage as RelStage, lastDay: num(r.lastDay, 0), since: num(r.since, 0) };
+    }
+  }
+  const milestones = Array.isArray(v.milestones)
+    ? v.milestones.filter((m): m is Raw => isObj(m) && typeof m.text === "string").map((m) => ({ day: num(m.day, 1), text: m.text as string })).slice(-60)
+    : [];
+  return {
+    flags: strArr(v.flags, []),
+    seen: numRecord(v.seen),
+    edu: {
+      stage: EDU_STAGES.includes(e.stage as EduStage) ? (e.stage as EduStage) : "none",
+      school: e.school === "ui" || e.school === "poly" ? e.school : null,
+      score: typeof e.score === "number" && Number.isFinite(e.score) ? e.score : null,
+      startDay: num(e.startDay, 0),
+      attended: num(e.attended, 0),
+      sessions: num(e.sessions, 0),
+      gp: num(e.gp, 0),
+      extraYears: clamp(e.extraYears, 0, 0, 5),
+      grade: strOrNull(e.grade, null),
+      posting: strOrNull(e.posting, null),
+    },
+    rel,
+    children: clamp(v.children, 0, 0, 20),
+    milestones,
+    seasons: num(v.seasons, 0),
+    ended: bool(v.ended, false),
   };
 }
 

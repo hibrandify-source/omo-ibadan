@@ -5,6 +5,7 @@
 
 import { PRICES } from "./prices";
 import type { BackgroundId } from "./backgrounds";
+import type { StoryCond, StoryFx } from "./storylets";
 
 export type HoodId =
   | "bodija"
@@ -188,14 +189,31 @@ export interface LifeEventOption {
   energy: number;
   bond?: number;
   note: string;
+  /** option only offered when this holds (lib/game/storylets) */
+  when?: StoryCond;
+  /** effects on the long life: flags, school, people */
+  fx?: StoryFx;
 }
 
+/**
+ * A life event, or "storylet": fires when its conditions hold. Priority
+ * storylets (JAMB results, call-up letters) fire as soon as they can;
+ * the rest are drawn at random among those eligible.
+ */
 export interface LifeEvent {
   id: string;
   title: string;
   desc: string;
   backgrounds?: BackgroundId[];
   options: LifeEventOption[];
+  when?: StoryCond;
+  priority?: boolean;
+  once?: boolean;
+  oncePerYear?: boolean;
+  /** days before it can fire again */
+  cooldown?: number;
+  /** relative odds among eligible storylets (default 1) */
+  weight?: number;
 }
 
 export const LIFE_EVENTS: LifeEvent[] = [
@@ -224,7 +242,7 @@ export const LIFE_EVENTS: LifeEvent[] = [
     backgrounds: ["omo-iya-lobe"],
     options: [
       { label: "Send Mama ₦5,000", ola: -5000, iwa: 10, energy: 0, bond: 8, note: "Omoluabi! Iwa +10, Mama's trust +8." },
-      { label: "Go to the owambe instead", ola: -3000, iwa: -5, energy: 10, bond: -6, note: "Fun now, Mama's face later. Iwa -5." },
+      { label: "Go to the owambe instead", ola: 0, iwa: -5, energy: 10, bond: -6, note: "Fun now, Mama's face later. Iwa -5." },
     ],
   },
   {

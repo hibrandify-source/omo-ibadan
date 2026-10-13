@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BACKGROUNDS, EXAM_POOL, MAP_NODES, PRICES, distanceKm, emptySkills, grantXp, MAX_SKILL_LEVEL } from "@/lib/game";
+import { BACKGROUNDS, EXAM_POOL, MAP_NODES, PRICES, distanceKm, emptySkills, grantXp, MAX_SKILL_LEVEL, upkeepFor } from "@/lib/game";
 import { CITY, mapDistrict, roadKm } from "@/lib/map/ibadan";
 import { autopilotInput, createDrive, pointOnPath, stepDrive, type DriveInput, type DriveState } from "@/lib/engine/drive";
 import { STREET_SCENES } from "@/lib/scenes";
@@ -112,15 +112,15 @@ describe("advanceDay", () => {
   it("decays needs and charges Alowonle's car fuel", () => {
     const r = advanceDay({ ...base, day: 2, bg: BACKGROUNDS.alowonle, rand: fixed(0.99) });
     expect(r.needs).toEqual(decayNeeds(base.needs, null));
-    expect(r.olaDelta).toBe(-PRICES.transport.carFuelPerDay);
+    expect(r.olaDelta).toBe(-upkeepFor(BACKGROUNDS.alowonle));
     expect(r.event).toBeNull();
   });
 
   it("pays the weekly allowance only while Daddy approves", () => {
     const ok = advanceDay({ ...base, day: 7, bg: BACKGROUNDS.alowonle, rand: fixed(0.99) });
-    expect(ok.olaDelta).toBe(BACKGROUNDS.alowonle.allowancePerWeek - PRICES.transport.carFuelPerDay);
+    expect(ok.olaDelta).toBe(BACKGROUNDS.alowonle.allowancePerWeek - upkeepFor(BACKGROUNDS.alowonle));
     const cut = advanceDay({ ...base, day: 7, bond: 10, bg: BACKGROUNDS.alowonle, rand: fixed(0.99) });
-    expect(cut.olaDelta).toBe(-PRICES.transport.carFuelPerDay);
+    expect(cut.olaDelta).toBe(-upkeepFor(BACKGROUNDS.alowonle));
     expect(cut.journal[0]).toMatch(/allowance stopped/);
   });
 
