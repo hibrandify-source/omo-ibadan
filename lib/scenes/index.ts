@@ -5,6 +5,7 @@ import { BEERE } from "./beere";
 import { BODIJA } from "./bodija";
 import { AGODI, DUGBE, ELEYELE, RING_ROAD, SANGO } from "./batch1";
 import { AGBOWO, CHALLENGE, MOKOLA, MOLETE, SAMONDA } from "./batch2";
+import { AKOBO, JERICHO, MONIYA, OJE, OJOO } from "./batch3";
 import { ALAKIA } from "./alakia";
 import { SABO } from "./sabo";
 import { AGBENI, ALESHINLOYE, GBAGI } from "./markets2";
@@ -38,6 +39,11 @@ export const STREET_SCENES: Record<string, SceneDef> = {
   challenge: CHALLENGE,
   molete: MOLETE,
   agbowo: AGBOWO,
+  ojoo: OJOO,
+  moniya: MONIYA,
+  akobo: AKOBO,
+  jericho: JERICHO,
+  oje: OJE,
 };
 
 export const streetSceneFor = (zone: string): SceneDef | undefined => STREET_SCENES[zone];

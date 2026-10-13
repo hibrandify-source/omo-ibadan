@@ -1004,6 +1004,37 @@ export default function Home() {
       earn(PRICES.printShift, 1, `🖨️ You bound twelve final-year projects at Agbowo: +${naira(PRICES.printShift)}, Hustle +10 XP.`, undefined, 180);
       return;
     }
+    if (id === "farm-help") {
+      if (part !== "morning") { push("🌱 Farm work starts at dawn, before the sun gets hot. Come back in the morning."); return; }
+      if (energy < 30) { push("🌱 Farm work needs strength. Chop or rest first."); return; }
+      setEnergy((e) => Math.max(5, e - 20));
+      addSkill("fitness", 20);
+      meet("Farmer");
+      earn(PRICES.farmDay, 1, `🌱 You cleared weeds and dug yams at Moniya: +${naira(PRICES.farmDay)}, Fitness +20 XP. The farmer gave you two tubers to take home.`, undefined, 300);
+      return;
+    }
+    if (id === "akobo-estate") {
+      meet("Estate gateman");
+      push("🏘️ The gateman: \"Two-bedroom flat is going for about ₦900k a year, plus agent and caution fee. Mini flat is cheaper. Come back when you're ready.\"");
+      spendMinutes(MINUTES.greet);
+      return;
+    }
+    if (id === "clinic") {
+      if (part === "night") { push("🏥 Outpatients is closed. Emergency only at this hour."); return; }
+      if (ola < PRICES.clinicVisit) { push(`🏥 Card and consultation is ${naira(PRICES.clinicVisit)}. You hold ${naira(ola)}.`); return; }
+      setOla((o) => o - PRICES.clinicVisit);
+      setEnergy((e) => Math.min(100, e + 20));
+      push(`🏥 The doctor checked your BP and gave you vitamins (−${naira(PRICES.clinicVisit)}). "Rest more, drink water." Energy +20.`);
+      spendMinutes(120);
+      return;
+    }
+    if (id === "aso-oke") {
+      setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 8), social: Math.min(100, n.social + 4) }));
+      meet("Aso-oke weaver");
+      push("🧵 The shuttle clicks back and forth. Narrow strips of aso-oke grow by the hour, to be sewn into one cloth. Fun +8.");
+      spendMinutes(MINUTES.greet * 2);
+      return;
+    }
     if (id === "mapo-view") {
       setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 12) }));
       push("🌇 From Mapo hill, rusted roofs run all the way to the horizon. Fun +12. This is Ibadan.");

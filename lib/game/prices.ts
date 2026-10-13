@@ -25,6 +25,8 @@ export const PRICES = {
   coldRoomShift: 3500, // a half-day carrying cartons at an Aleshinloye cold room
   lessonTutor: 3000, // an afternoon teaching JAMB maths/English at a Samonda lesson centre
   printShift: 2500, // a shift binding projects at an Agbowo printing shop
+  farmDay: 2000, // a day clearing and harvesting on a Moniya yam farm
+  clinicVisit: 2500, // consultation card + check-up at Jericho
 
   // ---- Personal ----
   bucketBath: 300, // water + soap for the day
