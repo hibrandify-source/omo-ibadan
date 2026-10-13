@@ -219,6 +219,118 @@ export function drawSuya(ctx: Ctx, t = 0) {
   ctx.fill();
 }
 
+/**
+ * A high-rise office tower (Cocoa House, 1965: the first skyscraper in West
+ * Africa). Origin NW corner of its footprint.
+ */
+export function drawTower(ctx: Ctx, opts: { w: number; d: number; floors: number; name?: string }) {
+  const { w, d, floors } = opts;
+  const D = d * G;
+  const fh = 3.3 * K; // floor height on screen
+  const H = floors * fh;
+  ctx.fillStyle = "rgba(25,12,6,0.25)";
+  ctx.fillRect(w, 0.3, H * 0.25, D);
+  // front face
+  ctx.fillStyle = "#e6dfcf";
+  ctx.fillRect(0, D - H, w, H);
+  for (let f = 0; f < floors; f++) {
+    const y = D - (f + 1) * fh;
+    ctx.fillStyle = "#cfc6b2";
+    ctx.fillRect(0, y + fh - 0.25, w, 0.25); // floor band
+    for (let x = 0.5; x < w - 0.6; x += 1.4) {
+      ctx.fillStyle = (f * 7 + Math.round(x)) % 9 === 0 ? "#f2d27a" : "#3a4a52"; // a few lit offices
+      ctx.fillRect(x, y + 0.6, 0.9, fh - 1.1);
+    }
+  }
+  ctx.fillStyle = "rgba(0,0,0,0.12)";
+  ctx.fillRect(w * 0.7, D - H, w * 0.3, H);
+  // roof slab, plant room and mast
+  rrect(ctx, -0.3, D - H - D - 0.2, w + 0.6, D + 0.2, 0.05);
+  ctx.fillStyle = "#bdb5a3";
+  ctx.fill();
+  ctx.fillStyle = "#d9d2c2";
+  ctx.fillRect(w * 0.3, D - H - D - 2.2, w * 0.4, 2.2);
+  line(ctx, w * 0.5, D - H - D - 2.2, w * 0.5, D - H - D - 7, "#555", 0.12);
+  oval(ctx, w * 0.5, D - H - D - 7, 0.18, 0.18);
+  ctx.fillStyle = "#e0281c";
+  ctx.fill();
+  if (opts.name) {
+    rrect(ctx, w * 0.15, D - 4.4 * K, w * 0.7, 0.8, 0.04);
+    ctx.fillStyle = "#5a3a24";
+    ctx.fill();
+    label(ctx, opts.name, w / 2, D - 4.4 * K + 0.4, 0.45, "#f3efe4", 900);
+  }
+  // ground-floor entrance
+  ctx.fillStyle = "#2c383d";
+  ctx.fillRect(w / 2 - 1.5, D - 2.6 * K, 3, 2.6 * K);
+}
+
+/** A shopping mall: long glass front, brand-free signage, canopy. Origin NW corner. */
+export function drawMall(ctx: Ctx, opts: { w: number; d: number; name: string }) {
+  const { w, d, name } = opts;
+  const D = d * G;
+  const h = 7.5 * K;
+  ctx.fillStyle = "rgba(25,12,6,0.22)";
+  ctx.fillRect(w, 0.3, 3, D);
+  ctx.fillStyle = "#d9d6cf";
+  ctx.fillRect(0, -h, w, D); // roof
+  for (let x = 2; x < w - 2; x += 6) {
+    rrect(ctx, x, -h + D * 0.3, 1.6, 1.0, 0.05);
+    ctx.fillStyle = "#c2bfb7";
+    ctx.fill();
+  }
+  ctx.fillStyle = "#f1efe9";
+  ctx.fillRect(0, D - h, w, h);
+  // glass shopfronts
+  for (let x = 0.8; x < w - 1; x += 4.2) {
+    const gr = ctx.createLinearGradient(x, 0, x + 3.6, 0);
+    gr.addColorStop(0, "#5a7a86");
+    gr.addColorStop(1, "#8fb0ba");
+    ctx.fillStyle = gr;
+    ctx.fillRect(x, D - 3.4 * K, 3.6, 3.2 * K);
+    ctx.fillStyle = "rgba(255,255,255,0.18)";
+    ctx.fillRect(x + 0.3, D - 3.3 * K, 0.6, 3.0 * K);
+  }
+  ctx.fillStyle = "#c9322a";
+  ctx.fillRect(0, D - h, w, 1.0);
+  label(ctx, name, w / 2, D - h + 0.5, 0.6, "#f3efe4", 900);
+  // canopy over the walkway
+  ctx.fillStyle = "rgba(60,60,60,0.85)";
+  ctx.fillRect(-0.2, D - 3.6 * K, w + 0.4, 0.2);
+}
+
+/** Open water (a reservoir or lake) with reeds at the edge. Flat; origin NW corner. */
+export function drawLake(ctx: Ctx, w: number, h: number, seed = 1) {
+  const r = rng(seed);
+  ctx.save();
+  ctx.scale(1, G);
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.3);
+  ctx.quadraticCurveTo(w * 0.1, -h * 0.05, w * 0.4, 0.4);
+  ctx.quadraticCurveTo(w * 0.8, -0.3, w, h * 0.25);
+  ctx.quadraticCurveTo(w * 1.02, h * 0.8, w * 0.75, h);
+  ctx.quadraticCurveTo(w * 0.35, h * 1.05, w * 0.05, h * 0.8);
+  ctx.closePath();
+  const g = ctx.createLinearGradient(0, 0, 0, h);
+  g.addColorStop(0, "#4b7f88");
+  g.addColorStop(1, "#356a73");
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.strokeStyle = "#7a6a45";
+  ctx.lineWidth = 0.6;
+  ctx.stroke();
+  for (let i = 0; i < 40; i++) {
+    const x = w * 0.1 + r() * w * 0.8, y = h * 0.15 + r() * h * 0.7;
+    line(ctx, x, y, x + 0.8 + r() * 1.5, y, "rgba(255,255,255,0.18)", 0.06);
+  }
+  ctx.restore();
+  for (let i = 0; i < 26; i++) {
+    const a = r() * Math.PI * 2;
+    const x = w / 2 + Math.cos(a) * w * 0.5, y = (h / 2 + Math.sin(a) * h * 0.5) * G;
+    for (let k = 0; k < 4; k++) line(ctx, x + k * 0.08, y, x + k * 0.08 + (r() - 0.5) * 0.2, y - 0.6 - r() * 0.5, "#5a6e2e", 0.04);
+  }
+}
+
 /** Porter's wheelbarrow loaded with sacks (alabaru). Origin = wheel on the ground; handles point west. */
 export function drawWheelbarrow(ctx: Ctx, load: "sacks" | "cartons" = "sacks") {
   groundShadow(ctx, -0.6, 0.05, 1.0, 0.35, 0.25);

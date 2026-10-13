@@ -11,7 +11,7 @@ import { drawBuilding, drawCivicHall, drawFence, drawGateArch, drawGenerator, dr
 import { drawBench, drawLaterite, drawLawn, drawPalm, drawPaving, drawPole, drawRoad, drawSignboard, drawTree, drawUmbrellaStall } from "@/lib/art/ground";
 import { drawBigGen, drawBooth, drawChickens, drawDrum, drawFlowers, drawHedge, drawPots, drawStall } from "@/lib/art/props";
 import { CARS, drawCar } from "@/lib/art/vehicles";
-import { drawControlTower, drawGolfGreen, drawMosque, drawPlane, drawSuya, drawTennisCourt, drawWheelbarrow } from "@/lib/art/landmarks";
+import { drawControlTower, drawGolfGreen, drawLake, drawMall, drawMosque, drawPlane, drawSuya, drawTennisCourt, drawTower, drawWheelbarrow } from "@/lib/art/landmarks";
 import { drawPerson, type PersonSpec } from "@/lib/art/people";
 import { CAST } from "@/lib/art/cast";
 import { partOfDay } from "@/lib/engine/clock";
@@ -58,7 +58,10 @@ function propBounds(p: PropKind): [number, number, number, number] {
     case "flowers": return [-0.2, -0.9, p.w + 0.2, 0.2];
     case "stall": return [-(p.w ?? 2.8) / 2 - 0.4, -4.2, (p.w ?? 2.8) / 2 + 0.4, 0.5];
     case "plane": return [-12.5, -16, 14, 6.5];
-    case "tower": return [-3, -(12 + 4.6) * K - 1.5, 5.5, 1.5];
+    case "ctower": return [-3, -(12 + 4.6) * K - 1.5, 5.5, 1.5];
+    case "tower": return [-1, -p.floors * 3.3 * K - 9, p.w + p.floors * 3.3 * K * 0.25 + 1, p.d * G + 0.6];
+    case "mall": return [-1, -7.5 * K - 1.5, p.w + 3.5, p.d * G + 0.6];
+    case "lake": return [-1, -1.6, p.w + 1, p.h * G + 0.6];
     case "mosque": return [-1, p.d * G - 13 * K - 2, p.w + 3.5, p.d * G + 0.6];
     case "tennis": return [-2.5, -2 * G - 1.6, 26.5, 13 * G + 0.6];
     case "golfgreen": return [-8, -2.6 * K - 1, 9.6, 4.6 * G];
@@ -91,7 +94,10 @@ function drawProp(ctx: Ctx, p: PropKind, seed: number, t: number) {
     case "flowers": return drawFlowers(ctx, p.w, seed);
     case "stall": return drawStall(ctx, p.goods, p.w ?? 2.8, 2.2, seed);
     case "plane": return drawPlane(ctx, p.livery);
-    case "tower": return drawControlTower(ctx);
+    case "ctower": return drawControlTower(ctx);
+    case "tower": return drawTower(ctx, p);
+    case "mall": return drawMall(ctx, p);
+    case "lake": return drawLake(ctx, p.w, p.h, seed);
     case "mosque": return drawMosque(ctx, p.w, p.d);
     case "tennis": return drawTennisCourt(ctx);
     case "golfgreen": return drawGolfGreen(ctx, t);

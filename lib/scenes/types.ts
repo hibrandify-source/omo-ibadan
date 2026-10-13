@@ -24,7 +24,10 @@ export type PropKind =
   | { kind: "hedge"; w: number }
   | { kind: "flowers"; w: number }
   | { kind: "plane"; livery?: string } // origin centre of the fuselage
-  | { kind: "tower" }
+  | { kind: "tower"; w: number; d: number; floors: number; name?: string } // high-rise, origin NW
+  | { kind: "mall"; w: number; d: number; name: string } // origin NW
+  | { kind: "lake"; w: number; h: number } // flat water, origin NW
+  | { kind: "ctower" } // airport control tower
   | { kind: "mosque"; w: number; d: number } // origin NW corner
   | { kind: "tennis" } // origin NW corner of the court
   | { kind: "golfgreen" } // origin = the hole

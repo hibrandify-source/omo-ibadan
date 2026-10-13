@@ -941,6 +941,69 @@ export default function Home() {
       earn(PRICES.coldRoomShift, 1, `🧊 Half a day carrying frozen fish cartons: +${naira(PRICES.coldRoomShift)}, Hustle +15 XP.`, undefined, 240);
       return;
     }
+    if (id === "cocoa-look") {
+      setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 6) }));
+      push("🏢 Cocoa House rises 26 floors above Dugbe. Opened in 1965 with cocoa farmers' money, the first skyscraper in West Africa.");
+      spendMinutes(MINUTES.greet);
+      return;
+    }
+    if (id === "mall-cinema") {
+      if (part === "night") { push("🎬 The last show has started. Come back tomorrow."); return; }
+      if (ola < PRICES.cinemaTicket) { push(`🎬 A ticket is ${naira(PRICES.cinemaTicket)}. You hold ${naira(ola)}.`); return; }
+      setOla((o) => o - PRICES.cinemaTicket);
+      setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 25), social: Math.min(100, n.social + 6) }));
+      push(`🎬 A Nollywood blockbuster at the Palms cinema (−${naira(PRICES.cinemaTicket)}). Fun +25.`);
+      spendMinutes(150);
+      return;
+    }
+    if (id === "lake-rest") {
+      setEnergy((e) => Math.min(100, e + 12));
+      setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 10) }));
+      push("🌊 You sit by Eleyele reservoir and watch the fishermen. Energy +12, fun +10.");
+      spendMinutes(60);
+      return;
+    }
+    if (id === "agodi-picnic") {
+      if (part === "night") { push("🌳 Agodi Gardens closes at dusk."); return; }
+      if (ola < PRICES.agodiGate) { push(`🌳 Gate fee is ${naira(PRICES.agodiGate)}.`); return; }
+      setOla((o) => o - PRICES.agodiGate);
+      setEnergy((e) => Math.min(100, e + 15));
+      setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 20), social: Math.min(100, n.social + 6) }));
+      setRests((n) => n + 1);
+      push(`🌳 An afternoon in Agodi Gardens (−${naira(PRICES.agodiGate)}). Energy +15, fun +20.`);
+      spendMinutes(120);
+      return;
+    }
+    if (id === "exam-hall") {
+      setTab("exam");
+      window.scrollTo({ top: 0 });
+      return;
+    }
+    if (id === "premier-view") {
+      setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 6) }));
+      push("🏨 Premier Hotel sits on Mokola hill, built in the 1960s when Ibadan was capital of the Western Region. Fun +6.");
+      spendMinutes(MINUTES.greet);
+      return;
+    }
+    if (id === "lesson-tutor") {
+      if (part !== "afternoon" && part !== "evening") { push("📚 The pupils come after school. Come back in the afternoon."); return; }
+      if (energy < 20) { push("📚 You're too tired to teach. Chop or rest first."); return; }
+      setEnergy((e) => Math.max(5, e - 10));
+      addSkill("brain", 15);
+      addSkill("charisma", 5);
+      meet("Lesson teacher");
+      earn(PRICES.lessonTutor, 1, `📚 You taught JAMB maths to six SS3 pupils: +${naira(PRICES.lessonTutor)}, Brain +15 XP.`, undefined, 120);
+      return;
+    }
+    if (id === "print-shop") {
+      if (!daytime) { push("🖨️ The printing shop has closed for the night."); return; }
+      if (energy < 20) { push("🖨️ Too tired to stand at the machine. Chop or rest first."); return; }
+      setEnergy((e) => Math.max(5, e - 12));
+      addSkill("hustle", 10);
+      meet("Printer boy");
+      earn(PRICES.printShift, 1, `🖨️ You bound twelve final-year projects at Agbowo: +${naira(PRICES.printShift)}, Hustle +10 XP.`, undefined, 180);
+      return;
+    }
     if (id === "mapo-view") {
       setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 12) }));
       push("🌇 From Mapo hill, rusted roofs run all the way to the horizon. Fun +12. This is Ibadan.");

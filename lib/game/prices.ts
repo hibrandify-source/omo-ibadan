@@ -20,7 +20,11 @@ export const PRICES = {
   clubGuestFee: 3000, // Recreation Club day guest
   caddieRound: 4000, // what a caddie earns carrying a bag for a round
   alabaruTrip: 2500, // a porter's pay for a morning of loads at the market
+  cinemaTicket: 3500, // a film at the mall cinema
+  agodiGate: 1000, // gate fee at Agodi Gardens
   coldRoomShift: 3500, // a half-day carrying cartons at an Aleshinloye cold room
+  lessonTutor: 3000, // an afternoon teaching JAMB maths/English at a Samonda lesson centre
+  printShift: 2500, // a shift binding projects at an Agbowo printing shop
 
   // ---- Personal ----
   bucketBath: 300, // water + soap for the day

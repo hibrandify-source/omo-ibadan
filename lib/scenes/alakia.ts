@@ -37,7 +37,7 @@ export const ALAKIA: SceneDef = {
   props: [
     // parked close to the fence so you can see it from the viewing spot
     { x: 14, y: 16.5, spec: { kind: "plane" } },
-    { x: 32.5, y: 15.5, spec: { kind: "tower" } },
+    { x: 32.5, y: 15.5, spec: { kind: "ctower" } },
     { x: 50, y: 24.2, spec: { kind: "gatearch", text: "OMOLOLU OLUNLOYO PARK", span: 6, boom: false } },
     { x: 42, y: 8, spec: { kind: "tree", size: 3 }, seed: 2101 },
     { x: 58, y: 6, spec: { kind: "tree", size: 3.4 }, seed: 2102 },
