@@ -22,6 +22,8 @@ const load = (f) => JSON.parse(fs.readFileSync(path.join(rawDir, f), "utf8")).el
 const roads = load("roads.json");
 const places = load("places.json");
 const named = load("districts.json");
+// airport, clubs and markets added later (extra.overpassql)
+const extra = fs.existsSync(path.join(rawDir, "extra.json")) ? load("extra.json") : [];
 
 // ---- projection: metres from a local origin, x east, y south (screen-style)
 const LAT0 = 7.4;
@@ -40,7 +42,7 @@ function cluster(re) {
   return { lat: median(pts.map((p) => p.lat)), lon: median(pts.map((p) => p.lon)), n: pts.length };
 }
 function landmark(name) {
-  const e = places.find((x) => x.tags && x.tags.name === name);
+  const e = [...places, ...extra].find((x) => x.tags && x.tags.name === name);
   return e ? e.center || e : null;
 }
 function roadEnd(name, which) {
@@ -81,6 +83,14 @@ const D = [
   ["molete", "Molete", () => ({ ...cluster(/molete/i), src: "osm: Molete-named features" })],
   ["challenge", "Challenge", () => ({ ...roadEnd("Challenge Road", "north"), src: "osm: north end of Challenge Road (Ring Road junction)" })],
   ["ring-road", "Ring Road / Palms", () => ({ ...landmark("Palms Shopping Mall"), src: "osm: Palms Shopping Mall" })],
+  ["gbagi", "Gbagi Market", () => ({ ...landmark("Gbagi New International Market"), src: "osm: Gbagi New International Market" })],
+  ["alakia", "Alakia / Airport", () => ({ ...landmark("Ibadan Airport"), src: "osm: Ibadan Airport (Alakia)" })],
+  ["sabo", "Sabo / Recreation Club", () => ({ ...landmark("Ibadan Recreation Club"), src: "osm: Ibadan Recreation Club, Sabo" })],
+  ["agbeni", "Agbeni Market", () => {
+    const pts = extra.filter((e) => e.tags && e.tags.name === "Agbeni").map((e) => e.center || e);
+    return { lat: pts.reduce((s, p) => s + p.lat, 0) / pts.length, lon: pts.reduce((s, p) => s + p.lon, 0) / pts.length, src: "osm: Agbeni Road (the market itself is untagged)" };
+  }],
+  ["aleshinloye", "Aleshinloye Market", () => ({ ...landmark("Aleshinloye Market"), src: "osm: Aleshinloye Market" })],
   ["iwo-road", "Iwo Road", () => ({ ...roadEnd("Iwo Road", "south"), src: "osm: west end of Iwo Road (interchange)" })],
 ];
 
@@ -259,13 +269,18 @@ const roadOut = roads.map((w) => {
   return { c: cls, n: nameIdx(w.tags.name), p: pts.flat() };
 });
 
-const LANDMARKS = ["Cocoa House", "Mapo Hall", "Oja Oba Market", "Agodi Gardens", "University College Hospital (UCH)", "The Polytechnic Ibadan", "Liberty Stadium", "Lekan Salami Stadium", "Palms Shopping Mall", "Gbagi New International Market", "Eleyele Reservoir", "Bodija Market"];
+const LANDMARKS = ["Ibadan Airport", "Ibadan Recreation Club", "Ibadan Golf Club", "Aleshinloye Market", "Cocoa House", "Mapo Hall", "Oja Oba Market", "Agodi Gardens", "University College Hospital (UCH)", "The Polytechnic Ibadan", "Liberty Stadium", "Lekan Salami Stadium", "Palms Shopping Mall", "Gbagi New International Market", "Eleyele Reservoir", "Bodija Market"];
 const landmarks = LANDMARKS.map((n) => {
   const p = landmark(n);
   if (!p) return null;
   const [x, y] = proj(p.lat, p.lon);
   return { name: n, x, y };
 }).filter(Boolean);
+{
+  // not in OpenStreetMap: placed in Alakia by the airport road, as the game's owner described; confirm locally
+  const [x, y] = proj(7.3825, 3.9705);
+  landmarks.push({ name: "Omololu Olunloyo Park (?)", x, y });
+}
 landmarks.push({ name: "University of Ibadan", ...Object.fromEntries(proj(ui.lat, ui.lon).map((v, i) => [i ? "y" : "x", v])) });
 
 const allX = roadOut.flatMap((r) => r.p.filter((_, i) => i % 2 === 0));

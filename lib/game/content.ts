@@ -46,6 +46,11 @@ export const MAP_NODES: MapNode[] = [
   { id: "ojoo", name: "Ojoo", yoruba: "Ojoo", zone: "hustle", hood: "ojoo", blurb: "Where Oyo Road meets the expressway. Buses north.", unlocks: [] },
   { id: "moniya", name: "Moniya", yoruba: "Moniya", zone: "hustle", hood: "ojoo", blurb: "Edge of the city. Cheaper rent, longer ride.", unlocks: [] },
   { id: "akobo", name: "Akobo", yoruba: "Akobo", zone: "chill", hood: "bodija", blurb: "New estates going up. Quiet streets, big gates.", unlocks: [] },
+  { id: "gbagi", name: "Gbagi Market", yoruba: "Ọjà Gbági", zone: "hustle", hood: "iwo-road", blurb: "Wholesale city off the Ife road: textiles, provisions, everything by the carton.", unlocks: [] },
+  { id: "alakia", name: "Alakia / Airport", yoruba: "Alákíà", zone: "chill", hood: "iwo-road", blurb: "Ibadan Airport and the Omololu Olunloyo Recreational Park. Planes to Lagos and Abuja.", unlocks: [] },
+  { id: "sabo", name: "Sabo / Recreation Club", yoruba: "Sabo", zone: "chill", hood: "beere", blurb: "Hausa quarter by Adamasingba; the old Recreation Club and the Golf Club next door.", unlocks: [] },
+  { id: "agbeni", name: "Agbeni Market", yoruba: "Ọjà Agbẹni", zone: "heritage", hood: "beere", blurb: "Old market between Dugbe and Ogunpa: foodstuff, enamel, everything at retail.", unlocks: [] },
+  { id: "aleshinloye", name: "Aleshinloye Market", yoruba: "Ọjà Aláṣínlóyè", zone: "hustle", hood: "challenge", blurb: "Big modern market off Ring Road by Jericho: foodstuff wholesale, frozen food, phones.", unlocks: [] },
   { id: "old-bodija", name: "Old Bodija", yoruba: "Bọ́dìjà Àtijọ́", zone: "chill", hood: "bodija", blurb: "Planned 1950s estate: wide plots, high fences, gatemen. Daddy's house is here.", unlocks: [] },
   { id: "jericho", name: "Jericho", yoruba: "Jẹ́ríkò", zone: "chill", hood: "beere", blurb: "Old GRA: big compounds, tall trees, doctors' quarters.", unlocks: [] },
 ];

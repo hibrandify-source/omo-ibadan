@@ -8,7 +8,7 @@ the in-game map shows the credit line, which the licence requires.
 
 ```bash
 mkdir -p scripts/osm/raw
-for q in roads places districts; do
+for q in roads places districts extra; do
   curl -sS --max-time 240 -X POST \
     -H "User-Agent: omo-ibadan-mapbuild/0.1" -H "Accept: application/json" \
     --data-urlencode "data@scripts/osm/$q.overpassql" \
@@ -31,6 +31,10 @@ If an Overpass server answers with an HTML "too busy" page, try another mirror
   (Dijkstra on the full-resolution road graph). Fares and travel use these.
 
 ## Known gaps
+
+- **Dr. Omololu Olunloyo Recreational Park** is not in OSM; it is placed in
+  Alakia near Airport Road and shown with "(?)" until confirmed.
+- **Agbeni market** is untagged; the district sits on Agbeni Road.
 
 - **Oje** has no OSM data; its position is a placeholder east of Beere.
 - **Mokola ↔ Dugbe** comes out at 4.3 km because the most direct link is a
