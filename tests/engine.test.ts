@@ -260,7 +260,8 @@ describe("walkable scenes", () => {
         { name: "arrive", ...scene.arrive },
         ...scene.doors.map((d) => ({ name: `door ${d.id}`, x: d.x, y: d.y })),
         ...scene.exits.map((e) => ({ name: `exit ${e.id}`, x: e.x, y: e.y })),
-        ...scene.npcs.flatMap((n) => Object.values(n.at).map((a) => ({ name: `npc ${n.id}`, x: a!.x, y: a!.y + 0.6 }))),
+        // you talk to people from up to 1.7 m away; traders stand behind their tables
+        ...scene.npcs.flatMap((n) => Object.values(n.at).map((a) => ({ name: `npc ${n.id}`, x: a!.x, y: a!.y + 1.4 }))),
       ];
       expect(isBlocked(scene, blockers, scene.spawn.x, scene.spawn.y), "spawn is inside a wall").toBe(false);
       for (const s of spots) expect(reachable(scene, scene.spawn, s), `${s.name} unreachable`).toBe(true);

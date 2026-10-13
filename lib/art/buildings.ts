@@ -13,6 +13,8 @@ export interface Opening {
   /** distance from the west end of the front wall to the opening's left edge */
   x: number;
   kind: "door" | "window" | "louvre" | "shutter" | "shopfront";
+  /** shopfront contents: shelves of packets (default) or a buka counter of soup pots */
+  inside?: "goods" | "food";
   width?: number;
   /** door curtain colour (face-me-I-face-you rooms) */
   curtain?: string;
@@ -196,6 +198,31 @@ function opening(ctx: Ctx, b: BuildingSpec, o: Opening, lift = 0) {
     ctx.fillStyle = shade(PAL.steelGreen, 0.1);
     ctx.fillRect(o.x - 0.05, floor - h - 0.2, w + 0.1, 0.22);
     for (let i = 0; i < 4; i++) line(ctx, o.x - 0.05, floor - h - 0.18 + i * 0.05, o.x + w + 0.05, floor - h - 0.18 + i * 0.05, shade(PAL.steelGreen, -0.3), 0.01);
+    if (o.inside === "food") {
+      // buka counter: big pots of amala, gbegiri, ewedu and stew, plates stacked
+      ctx.fillStyle = "#3a2a1e";
+      ctx.fillRect(o.x, floor - h, w, h);
+      ctx.fillStyle = PAL.wood;
+      ctx.fillRect(o.x + 0.05, floor - 0.95 * K, w - 0.1, 0.95 * K - 0.02);
+      const pots = ["#c9a23a", "#3f6b2a", "#b8331f", "#e9dcc0"];
+      for (let i = 0; i < Math.floor(w / 0.75); i++) {
+        const px = o.x + 0.4 + i * 0.75;
+        rrect(ctx, px - 0.28, floor - 0.95 * K - 0.32, 0.56, 0.34, 0.08);
+        ctx.fillStyle = "#26231f";
+        ctx.fill();
+        oval(ctx, px, floor - 0.95 * K - 0.32, 0.28, 0.08);
+        ctx.fillStyle = pots[i % pots.length];
+        ctx.fill();
+      }
+      for (let i = 0; i < 4; i++) {
+        oval(ctx, o.x + w - 0.35, floor - 0.95 * K - 0.06 - i * 0.05, 0.22, 0.05);
+        ctx.fillStyle = i % 2 ? "#f2efe6" : "#d9dcdc";
+        ctx.fill();
+      }
+      ctx.fillStyle = PAL.concrete;
+      ctx.fillRect(o.x - 0.2, floor, w + 0.4, 0.3);
+      return;
+    }
     // goods on shelves inside
     for (let s = 0; s < 3; s++) {
       line(ctx, o.x + 0.05, floor - h + 0.4 + s * 0.5, o.x + w - 0.05, floor - h + 0.4 + s * 0.5, PAL.wood, 0.04);

@@ -22,7 +22,8 @@ export type PropKind =
   | { kind: "booth" } // gateman's post
   | { kind: "biggen"; running: boolean } // soundproof house generator
   | { kind: "hedge"; w: number }
-  | { kind: "flowers"; w: number };
+  | { kind: "flowers"; w: number }
+  | { kind: "stall"; goods: "pepper" | "tomato" | "onion" | "yam" | "fabric" | "grains" | "fish" | "soup" | "provisions"; w?: number };
 
 export interface Placed<T> {
   x: number;

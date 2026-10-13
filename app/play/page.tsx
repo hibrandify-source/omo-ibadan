@@ -88,6 +88,7 @@ import {
   FURNITURE,
   NPCS,
   emptyHome,
+  DOORS,
   type HomeSave,
   type Door,
 } from "@/lib/world";
@@ -868,6 +869,21 @@ export default function Home() {
 
   // ---- walkable scene actions ----
   const sceneDoor = (id: string) => {
+    // shared doors (market trading, Mama Put's stall) open the same panels as before
+    const shared = DOORS.find((d) => d.id === id);
+    if (shared) {
+      setDoorOpen(shared);
+      return;
+    }
+    if (id === "help-mama-stall") {
+      const part = partOfDay(minuteRef.current);
+      if (part !== "morning" && part !== "afternoon") {
+        push("🍲 Mama has packed up for the day. She's cooking at home in Beere this evening.");
+        return;
+      }
+      familyDuty();
+      return;
+    }
     if (id === "mama-room" || id === "house") {
       setTab("ile");
       setIleView("room");

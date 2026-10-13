@@ -22,6 +22,7 @@ export function propBlock(p: PropKind): Rect | null {
     case "biggen": return { x: -1.3, y: -0.55, w: 2.6, h: 1.1 };
     case "hedge": return { x: 0, y: -0.4, w: p.w, h: 0.5 };
     case "flowers": return { x: 0, y: -0.6, w: p.w, h: 0.6 };
+    case "stall": return { x: -(p.w ?? 2.8) / 2, y: -2.2, w: p.w ?? 2.8, h: 2.2 };
     default: return null;
   }
 }

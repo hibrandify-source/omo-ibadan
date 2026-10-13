@@ -1,6 +1,6 @@
 // Omo Ibadan art kit — small yard props. Origin is the object's centre on the ground.
 
-import { G, K, alpha, groundShadow, line, oval, rng, rrect, shade, type Ctx } from "./core";
+import { G, K, alpha, groundShadow, line, oval, poly, rng, rrect, shade, type Ctx } from "./core";
 import { PAL } from "./palette";
 import { drawBuilding } from "./buildings";
 
@@ -137,6 +137,143 @@ export function drawFlowers(ctx: Ctx, w: number, seed = 9) {
     oval(ctx, x + 0.04, cy - 0.08, 0.06, 0.05);
     ctx.fillStyle = ["#e9b22a", "#d8322a", "#f2efe6", "#b0479a"][Math.floor(r() * 4)];
     ctx.fill();
+  }
+}
+
+export type StallGoods = "pepper" | "tomato" | "onion" | "yam" | "fabric" | "grains" | "fish" | "soup" | "provisions";
+
+/**
+ * Open market stall: wooden table of goods under a rusted zinc shed roof on
+ * four posts, plank wall at the back. Origin is the centre of the front edge;
+ * the stall runs back (north) `d` metres. Sellers stand just behind the table,
+ * so scenes draw `part: "back"` (wall) before them and `"front"` (table, roof) after.
+ */
+export function drawStall(ctx: Ctx, goods: StallGoods, w = 2.8, d = 2.2, seed = 1, part: "back" | "front" | "all" = "all") {
+  const r = rng(seed);
+  const D = d * G;
+  const tableH = 0.85 * K;
+  if (part !== "front") drawStallBack(ctx, w, D);
+  if (part === "back") return;
+  drawStallFront(ctx, goods, w, D, tableH, r);
+}
+
+function drawStallBack(ctx: Ctx, w: number, D: number) {
+  // back plank wall
+  ctx.fillStyle = shade(PAL.wood, 0.05);
+  ctx.fillRect(-w / 2, -D - 2.3 * K, w, 2.3 * K);
+  for (let x = -w / 2; x < w / 2; x += 0.22) line(ctx, x, -D - 2.3 * K, x, -D, alpha(PAL.woodDark, 0.6), 0.015);
+  // shadow under the roof
+  ctx.fillStyle = "rgba(20,12,6,0.18)";
+  ctx.fillRect(-w / 2, -D, w, D);
+  for (const x of [-w / 2 + 0.05, w / 2 - 0.05]) line(ctx, x, -D, x, -D - 2.95 * K, "#4a3a2a", 0.06);
+}
+
+function drawStallFront(ctx: Ctx, goods: StallGoods, w: number, D: number, tableH: number, r: () => number) {
+  // table top and front
+  ctx.fillStyle = shade(PAL.wood, 0.15);
+  ctx.fillRect(-w / 2 + 0.1, -0.9 * G - tableH, w - 0.2, 0.9 * G);
+  ctx.fillStyle = PAL.wood;
+  ctx.fillRect(-w / 2 + 0.1, -tableH, w - 0.2, tableH - 0.05);
+  for (let y = 0.25; y < 0.9; y += 0.3) line(ctx, -w / 2 + 0.1, -tableH + y * K * 0.9, w / 2 - 0.1, -tableH + y * K * 0.9, alpha(PAL.woodDark, 0.5), 0.015);
+  // goods on the table
+  const top = -tableH - 0.45 * G;
+  const n = Math.max(3, Math.floor(w / 0.6));
+  for (let i = 0; i < n; i++) {
+    const gx = -w / 2 + 0.4 + (i * (w - 0.8)) / (n - 1);
+    drawGoods(ctx, goods, gx, top, r, i);
+  }
+  // front posts
+  for (const x of [-w / 2 + 0.05, w / 2 - 0.05]) line(ctx, x, 0.05, x, -2.75 * K, "#4a3a2a", 0.07);
+  // shed roof: higher at the back, overhanging the front
+  const yb = -D - 0.15 * G - 3.0 * K;
+  const yf = 0.35 * G - 2.75 * K;
+  poly(ctx, [-w / 2 - 0.2, yb, w / 2 + 0.2, yb, w / 2 + 0.25, yf, -w / 2 - 0.25, yf]);
+  ctx.fillStyle = mixRoof(r());
+  ctx.fill();
+  for (let x = -w / 2 - 0.2; x < w / 2 + 0.2; x += 0.11) line(ctx, x, yb, x, yf, "rgba(0,0,0,0.12)", 0.03);
+  for (let i = 0; i < w * 3; i++) {
+    const x = -w / 2 + r() * w;
+    line(ctx, x, yb + r() * (yf - yb) * 0.5, x, yf, alpha(PAL.rust[3], 0.35), 0.05);
+  }
+  ctx.fillStyle = PAL.fascia;
+  ctx.fillRect(-w / 2 - 0.25, yf, w + 0.5, 0.08);
+}
+
+function mixRoof(t: number): string {
+  return shade(PAL.rust[t < 0.5 ? 1 : 2], (t - 0.5) * 0.2);
+}
+
+function drawGoods(ctx: Ctx, goods: StallGoods, x: number, y: number, r: () => number, i: number) {
+  const bowl = (color: string) => {
+    oval(ctx, x, y + 0.06, 0.24, 0.1);
+    ctx.fillStyle = color;
+    ctx.fill();
+  };
+  const heap = (cols: string[], n = 9, size = 0.055) => {
+    for (let k = 0; k < n; k++) {
+      oval(ctx, x + (r() - 0.5) * 0.32, y - (k % 3) * 0.04 - r() * 0.05, size, size * 0.9);
+      ctx.fillStyle = cols[k % cols.length];
+      ctx.fill();
+    }
+  };
+  switch (goods) {
+    case "pepper": bowl("#d9dcdc"); heap(i % 2 ? ["#d8321f", "#b0201a"] : ["#e9b22a", "#d8321f"]); return;
+    case "tomato": bowl("#c9b07a"); heap(["#c8261c", "#d9452c", "#a81d14"], 10, 0.065); return;
+    case "onion": bowl("#c9b07a"); heap(["#b7643f", "#c98a5a", "#a24e2e"], 9, 0.06); return;
+    case "grains": {
+      // open basins of garri, beans and rice
+      bowl(["#2f6fb5", "#c9322a", "#3f8a4a"][i % 3]);
+      oval(ctx, x, y + 0.02, 0.2, 0.07);
+      ctx.fillStyle = ["#efe6cf", "#9a5a35", "#f4f1e6"][i % 3];
+      ctx.fill();
+      return;
+    }
+    case "yam":
+      for (let k = 0; k < 4; k++) {
+        ctx.save();
+        ctx.translate(x - 0.15 + k * 0.1, y - (k % 2) * 0.05);
+        ctx.rotate(-0.4 + k * 0.25);
+        rrect(ctx, -0.2, -0.05, 0.4, 0.1, 0.05);
+        ctx.fillStyle = k % 2 ? "#6b4a2e" : "#7d5a38";
+        ctx.fill();
+        ctx.restore();
+      }
+      return;
+    case "fabric":
+      for (let k = 0; k < 4; k++) {
+        rrect(ctx, x - 0.22, y - k * 0.06, 0.44, 0.07, 0.02);
+        ctx.fillStyle = ["#c6731e", "#1f6b4a", "#5b2a6e", "#23345e", "#b8433a"][(i + k) % 5];
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,235,180,0.5)";
+        ctx.fillRect(x - 0.2, y - k * 0.06 + 0.02, 0.4, 0.012);
+      }
+      return;
+    case "fish":
+      bowl("#c9b07a");
+      for (let k = 0; k < 4; k++) {
+        oval(ctx, x - 0.12 + k * 0.08, y - 0.02, 0.09, 0.03);
+        ctx.fillStyle = "#7a5636";
+        ctx.fill();
+      }
+      return;
+    case "soup": {
+      // Mama's pots of gbegiri and ewedu, ladle resting on top
+      rrect(ctx, x - 0.2, y - 0.2, 0.4, 0.24, 0.06);
+      ctx.fillStyle = "#26231f";
+      ctx.fill();
+      oval(ctx, x, y - 0.2, 0.2, 0.06);
+      ctx.fillStyle = i % 2 ? "#3f6b2a" : "#c9a23a";
+      ctx.fill();
+      line(ctx, x + 0.05, y - 0.22, x + 0.22, y - 0.38, "#9a9c9a", 0.02);
+      return;
+    }
+    case "provisions":
+      for (let k = 0; k < 5; k++) {
+        rrect(ctx, x - 0.2 + (k % 3) * 0.13, y - 0.1 - Math.floor(k / 3) * 0.12, 0.11, 0.12, 0.01);
+        ctx.fillStyle = ["#d23b2a", "#f0c32e", "#2f6fb5", "#f4f1e6", "#2f8a4a"][(i + k) % 5];
+        ctx.fill();
+      }
+      return;
   }
 }
 

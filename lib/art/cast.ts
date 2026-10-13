@@ -79,6 +79,29 @@ export const CAST: Record<string, PersonSpec> = {
     outfit: { kind: "gown", dress: FABRICS.waxGold },
     shoes: "#c9a24a", carry: "bag",
   },
+  mamaPut: {
+    skin: S[3], height: 1.6, build: 1.3, age: "adult", hair: "lowcut",
+    headwear: { kind: "headtie", fabric: FABRICS.stripeRed },
+    outfit: { kind: "iro-buba", buba: FABRICS.waxGold, iro: FABRICS.adireIndigo },
+    shoes: PAL.slipper, carry: null,
+  },
+  iyaAlata: {
+    skin: S[1], height: 1.58, build: 1.2, age: "adult", hair: "lowcut",
+    headwear: { kind: "headtie", fabric: FABRICS.waxPurple },
+    outfit: { kind: "iro-buba", buba: FABRICS.stripeRed, iro: FABRICS.waxGreen },
+    shoes: PAL.slipper, carry: null,
+  },
+  yamSeller: {
+    skin: S[0], height: 1.72, build: 1.05, age: "adult", hair: "lowcut",
+    headwear: { kind: "cap", fabric: FABRICS.plainSky },
+    outfit: { kind: "shirt-trousers", shirt: "#8a6a3a", trousers: "#3a3530" },
+    shoes: PAL.slipper, carry: null,
+  },
+  clothSeller: {
+    skin: S[4], height: 1.64, build: 1.0, age: "adult", hair: "braids", headwear: null,
+    outfit: { kind: "gown", dress: FABRICS.waxGreen },
+    shoes: "#7a4a2b", carry: null,
+  },
   gatemanMusa: {
     skin: S[2], height: 1.74, build: 0.92, age: "adult", hair: "lowcut",
     headwear: { kind: "cap", fabric: { base: "#e9e3d6", a: "#e9e3d6", b: "#e9e3d6", motif: "plain" } },

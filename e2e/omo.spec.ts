@@ -28,6 +28,10 @@ const state = (page: Page): Promise<OmoState> =>
 const teleport = (page: Page, x: number, y: number) =>
   page.evaluate(([px, py]) => (window as unknown as { __omo: { teleport: (x: number, y: number) => void } }).__omo.teleport(px, py), [x, y] as [number, number]);
 
+/** Put the player at a spot in the current walkable scene (world metres). */
+const sceneMoveTo = (page: Page, x: number, y: number) =>
+  page.evaluate(([px, py]) => (window as unknown as { __omoScene: { moveTo: (x: number, y: number) => void } }).__omoScene.moveTo(px, py), [x, y] as [number, number]);
+
 /** Open a game tab. On phones some tabs live under the "More" sheet. */
 async function openTab(page: Page, label: string) {
   const direct = page.getByRole("button", { name: label, exact: true });
@@ -134,10 +138,11 @@ test.describe("Omo Ibadan E2E", () => {
 
   test("door: walk-up to Mama Put's stall opens the store in place", async ({ page }) => {
     await startGame(page, "DoorWaka");
-    // map tab is default; hop to Bodija then step onto the stall mat (% coords)
+    // map tab is default; hop to Bodija Market and walk up to Mama Put's buka
     await page.evaluate(() => (window as unknown as { __omo: { goto: (z: string) => void } }).__omo.goto("bodija"));
-    await teleport(page, 14, 74);
-    const chip = page.getByRole("button", { name: /Mama Put's Stall — step inside, no tabs/ });
+    await expect(page.getByRole("img", { name: /Bodija Market, walkable street/ })).toBeVisible();
+    await sceneMoveTo(page, 7, 30.9);
+    const chip = page.getByRole("button", { name: /Mama Put's Stall/ });
     await expect(chip).toBeVisible({ timeout: 15_000 });
     await chip.click();
     await expect(page.getByRole("dialog", { name: /Mama Put/ })).toBeVisible();
@@ -319,6 +324,23 @@ test.describe("Omo Ibadan E2E", () => {
       const o = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       expect(o, path).toBeLessThanOrEqual(0);
     }
+  });
+
+  test("Oja'ba: help Mama at her stall in the morning, buy stock from Iya Alata", async ({ page }) => {
+    await startGame(page, "OjabaWaka");
+    await page.evaluate(() => (window as unknown as { __omo: { goto: (z: string) => void } }).__omo.goto("oja-oba"));
+    await expect(page.getByRole("img", { name: /Oja'ba, walkable street/ })).toBeVisible();
+    const bond0 = (await state(page)).bond;
+    await sceneMoveTo(page, 16.4, 19.7);
+    await page.getByRole("button", { name: /Help Mama sell/ }).click();
+    let s = await state(page);
+    expect(s.feed[0]).toMatch(/helped Mama sell at Oja'ba/);
+    expect(s.bond).toBe(bond0 + 4);
+    await sceneMoveTo(page, 35, 19.7);
+    await page.getByRole("button", { name: /Buy stock from Iya Alata/ }).click();
+    s = await state(page);
+    expect(s.doorOpen).toBe("door-ojaoba");
+    await expect(page.getByRole("button", { name: /Buy Oja Oba/ })).toBeVisible();
   });
 
   test("no uncaught errors from load through first hustle", async ({ page }) => {

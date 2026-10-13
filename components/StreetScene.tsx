@@ -9,7 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { G, K, TILT_STREET, setTilt, type Ctx, type Dir } from "@/lib/art/core";
 import { drawBuilding, drawFence, drawGenerator, drawKiosk, drawWaterTank } from "@/lib/art/buildings";
 import { drawBench, drawLaterite, drawLawn, drawPalm, drawPaving, drawPole, drawRoad, drawSignboard, drawTree, drawUmbrellaStall } from "@/lib/art/ground";
-import { drawBigGen, drawBooth, drawChickens, drawDrum, drawFlowers, drawHedge, drawPots } from "@/lib/art/props";
+import { drawBigGen, drawBooth, drawChickens, drawDrum, drawFlowers, drawHedge, drawPots, drawStall } from "@/lib/art/props";
 import { CARS, drawCar } from "@/lib/art/vehicles";
 import { drawPerson, type PersonSpec } from "@/lib/art/people";
 import { CAST } from "@/lib/art/cast";
@@ -55,6 +55,7 @@ function propBounds(p: PropKind): [number, number, number, number] {
     case "biggen": return [-1.6, -2.6, 2, 0.8];
     case "hedge": return [-0.2, -1.4, p.w + 0.3, 0.5];
     case "flowers": return [-0.2, -0.9, p.w + 0.2, 0.2];
+    case "stall": return [-(p.w ?? 2.8) / 2 - 0.4, -4.2, (p.w ?? 2.8) / 2 + 0.4, 0.5];
     default: return [-1, -1.5, 1, 0.5];
   }
 }
@@ -78,6 +79,7 @@ function drawProp(ctx: Ctx, p: PropKind, seed: number, t: number) {
     case "biggen": return drawBigGen(ctx, p.running, t);
     case "hedge": return drawHedge(ctx, p.w, seed);
     case "flowers": return drawFlowers(ctx, p.w, seed);
+    case "stall": return drawStall(ctx, p.goods, p.w ?? 2.8, 2.2, seed);
   }
 }
 
@@ -177,6 +179,15 @@ export default function StreetScene({
       }
       for (const p of scene.props) {
         if (ANIMATED.has(p.spec.kind)) continue;
+        const spec = p.spec;
+        if (spec.kind === "stall") {
+          const w = spec.w ?? 2.8;
+          for (const part of ["back", "front"] as const) {
+            const s0 = makeSprite(pxPerM, propBounds(spec), (ctx) => drawStall(ctx, spec.goods, w, 2.2, p.seed ?? 1, part));
+            statics.push({ ...s0, x0: p.x + s0.x0, y0: p.y * G + s0.y0, sortY: part === "back" ? p.y - 2.2 : p.y });
+          }
+          continue;
+        }
         const s0 = makeSprite(pxPerM, propBounds(p.spec), (ctx) => drawProp(ctx, p.spec, p.seed ?? 1, 0));
         statics.push({ ...s0, x0: p.x + s0.x0, y0: p.y * G + s0.y0, sortY: p.y });
       }
