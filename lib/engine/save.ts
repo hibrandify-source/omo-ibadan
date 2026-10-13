@@ -16,6 +16,7 @@ import {
   type SkillMap,
 } from "@/lib/game";
 import { emptyHome, type HomeSave } from "@/lib/world";
+import { WAKE_MINUTE } from "./clock";
 
 export const SAVE_VERSION = 3;
 export const SAVE_KEY = "omo-ibadan-v1"; // key kept so existing players keep their saves
@@ -55,7 +56,8 @@ export interface SaveData {
   lastFamilyDay: number;
   // time
   day: number;
-  actions: number;
+  /** time of day, minutes after midnight */
+  minute: number;
   weather: Weather;
   eventId: string | null;
   // counters
@@ -125,7 +127,7 @@ export function defaultSave(): SaveData {
     paidObligations: [],
     lastFamilyDay: 0,
     day: 1,
-    actions: 0,
+    minute: WAKE_MINUTE,
     weather: "clear",
     eventId: null,
     micraRuns: 0,
@@ -270,7 +272,7 @@ export function migrateSave(input: unknown): SaveData | null {
     paidObligations: strArr(s.paidObligations, []),
     lastFamilyDay: num(s.lastFamilyDay, 0),
     day: Math.max(1, num(s.day, 1)),
-    actions: Math.max(0, num(s.actions, 0)),
+    minute: Math.round(clamp(s.minute, WAKE_MINUTE, 0, 1439)),
     weather: s.weather === "rain" ? "rain" : "clear",
     eventId: strOrNull(s.eventId, null),
     micraRuns: num(s.micraRuns, 0),

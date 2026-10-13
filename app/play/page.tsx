@@ -28,6 +28,7 @@ import {
   careerPay,
   entryLevel,
   distanceKm,
+  TRANSPORT,
   PRICES,
   naira,
   BACKGROUNDS,
@@ -47,15 +48,25 @@ import {
   type SaveData,
 } from "@/lib/engine/save";
 import {
-  ACTIONS_PER_DAY,
   EXAM_PAID_PER_DAY,
-  TERMINAL_ACTIONS,
   TERMINAL_ENERGY,
   advanceDay,
   decayNeeds,
   examQuestion,
   titleFor,
 } from "@/lib/engine/day";
+import {
+  MINUTES,
+  WAKE_MINUTE,
+  advanceClock,
+  ageOn,
+  calendarFor,
+  formatTime,
+  isLateNight,
+  minutesUntilMorning,
+  partOfDay,
+  shiftOpen,
+} from "@/lib/engine/clock";
 import CityMap from "@/components/CityMap";
 import DistrictScene from "@/components/DistrictScene";
 import { hasScene, sceneFor } from "@/lib/districts";
@@ -190,9 +201,10 @@ export default function Home() {
   const [invites, setInvites] = useState(0);
   // V1 rest-of-build: day cycle, stats, missions, hoods, events
   const [day, setDay] = useState(1);
-  const [actions, setActions] = useState(0);
-  // mirrors `actions` so several earns in one tick still count separately
-  const actionsRef = useRef(0);
+  // time of day in minutes after midnight (lib/engine/clock)
+  const [minute, setMinute] = useState(WAKE_MINUTE);
+  // mirrors `minute` so several actions in one tick all count
+  const minuteRef = useRef(WAKE_MINUTE);
   const [micraRuns, setMicraRuns] = useState(0);
   const [trades, setTrades] = useState(0);
   const [examPass, setExamPass] = useState(0);
@@ -316,6 +328,7 @@ export default function Home() {
     meet(id);
     setNeeds((n) => ({ ...n, social: Math.min(100, n.social + 8) }));
     push(`👋 ${id}: ${p.lines[npcTier(id)]}`);
+    spendMinutes(MINUTES.greet);
   };
   const [shopGreets, setShopGreets] = useState<Record<string, number>>({});
   const [viewDay, setViewDay] = useState(0);
@@ -350,8 +363,8 @@ export default function Home() {
     setPaidObligations(s.paidObligations);
     setLastFamilyDay(s.lastFamilyDay);
     setDay(s.day);
-    setActions(s.actions);
-    actionsRef.current = s.actions;
+    setMinute(s.minute);
+    minuteRef.current = s.minute;
     setWeather(s.weather);
     setEvent(LIFE_EVENTS.find((e) => e.id === s.eventId) ?? null);
     setMicraRuns(s.micraRuns);
@@ -392,7 +405,7 @@ export default function Home() {
   const current: SaveData = {
     v: SAVE_VERSION, savedAt: 0, started, username, myCode, bgId, gender, look, trait, saver,
     ola, iwa, energy, needs, bond, paidObligations, lastFamilyDay,
-    day, actions, weather, eventId: event?.id ?? null,
+    day, minute, weather, eventId: event?.id ?? null,
     micraRuns, trades, examPass, exam, familyCount, rests, fullLoads, sprays, lastTerminalDay,
     visits, done, claimedDaily, hoods, myHood,
     avatarZone, home, travelMode, wardrobe, equipped,
@@ -448,7 +461,7 @@ export default function Home() {
     (window as unknown as { __omo: unknown }).__omo = {
       teleport: (x: number, y: number) => setTeleport((t) => ({ x, y, key: (t?.key ?? 0) + 1 })),
       goto: (zoneId: string) => { setNode(zoneId); setAvatarZone(zoneId); recordVisit(zoneId); },
-      state: () => ({ started, tab, bg: bgId, bond, ola, iwa, energy, day, avatarZone, nearDoor: nearDoor?.id ?? null, doorOpen: doorOpen?.id ?? null, feed: feed.slice(0, 3), journal: journal.length, npc: Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets])) }),
+      state: () => ({ started, tab, bg: bgId, bond, ola, iwa, energy, day, minute, avatarZone, nearDoor: nearDoor?.id ?? null, doorOpen: doorOpen?.id ?? null, feed: feed.slice(0, 3), journal: journal.length, npc: Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets])) }),
     };
   });
 
@@ -592,7 +605,7 @@ export default function Home() {
     push(`Ẹ káàbọ̀ sí Ìbàdàn, ${username}! ${g.yoruba} · ${bg.name}. You start with ${naira(pocket)}.${extra}`);
   };
 
-  const earn = (dOla: number, dIwa: number, msg: string, tag?: "micra" | "trade" | "exam" | "fullload") => {
+  const earn = (dOla: number, dIwa: number, msg: string, tag?: "micra" | "trade" | "exam" | "fullload", minutes?: number) => {
     // trait pay modifiers (from lib/ibadanlife/traits, adapted to our paths)
     let ola = dOla;
     let iwa = dIwa;
@@ -618,18 +631,20 @@ export default function Home() {
       jot("Full 6/6 load out of the park — tout hail am.");
     }
     push(msg);
-    spendActions(1);
+    // working through the night costs extra energy
+    if (isLateNight(minuteRef.current)) {
+      setEnergy((e) => Math.max(5, e - 5));
+      push("🌙 Night hustle: −5⚡ extra. Your body wants your bed.");
+    }
+    spendMinutes(minutes ?? (tag === "exam" ? MINUTES.exam : MINUTES.hustle));
   };
 
-  // ---- time: every ACTIONS_PER_DAY hustle actions is a new day (rules in lib/engine/day) ----
-  const spendActions = (n: number) => {
-    let newDays = 0;
-    for (let i = 0; i < n; i++) {
-      actionsRef.current += 1;
-      if (actionsRef.current % ACTIONS_PER_DAY === 0) newDays += 1;
-    }
-    setActions(actionsRef.current);
-    for (let i = 1; i <= newDays; i++) startDay(day + i);
+  // ---- time: actions cost minutes; crossing midnight starts a new day (lib/engine/clock) ----
+  const spendMinutes = (mins: number) => {
+    const r = advanceClock(minuteRef.current, mins);
+    minuteRef.current = r.minute;
+    setMinute(r.minute);
+    for (let i = 1; i <= r.newDays; i++) startDay(day + i);
   };
 
   const startDay = (nd: number) => {
@@ -678,6 +693,7 @@ export default function Home() {
     setLastFamilyDay(day);
     setEnergy((e) => Math.max(5, e - 15));
     setBond((b) => Math.min(100, b + 4));
+    spendMinutes(MINUTES.familyDuty);
     if (bg.id === "omo-iya-lobe") {
       const tip = 2500;
       setOla((o) => o + tip);
@@ -758,6 +774,7 @@ export default function Home() {
     ensureAudio();
     blip();
     push(`🍲 Amala + gbegiri @ Bodija. Energy +${pow}, hunger +${hungry}.`);
+    spendMinutes(MINUTES.chop);
   };
 
   // Milestone 3: home economy (spending never feeds hood board)
@@ -779,11 +796,20 @@ export default function Home() {
     push(msg);
   };
 
-  const restHome = (energy: number, msg: string) => {
+  const restHome = (energy: number, msg: string, minutes: number = MINUTES.rest) => {
     setEnergy((e) => Math.min(100, e + energy));
     setRests((n) => n + 1);
     setNeeds((n) => ({ ...n, hunger: Math.min(100, n.hunger + 8) }));
     push(msg);
+    spendMinutes(minutes);
+  };
+
+  // sleep through to 6 am; the bed's comfort decides how much energy comes back
+  const sleep = (bonus: number) => {
+    const mins = minutesUntilMorning(minuteRef.current);
+    const hours = Math.round(mins / 60);
+    const gain = hours >= 6 ? bonus : Math.round((bonus * hours) / 6);
+    restHome(gain, `😴 Slept ${hours}h in your own bed, up at 6 am. Energy +${gain}.`, mins);
   };
 
   // freshen up + toilet (once per game day each)
@@ -802,6 +828,7 @@ export default function Home() {
     ensureAudio();
     blip();
     push("🚿 Bucket bath + sponge. Hygiene +30. Fresh pikin.");
+    spendMinutes(MINUTES.freshen);
   };
   const useToilet = () => {
     if (lastToiletDay === day) {
@@ -811,6 +838,7 @@ export default function Home() {
     setLastToiletDay(day);
     setNeeds((n) => ({ ...n, toilet: Math.min(100, n.toilet + 40) }));
     push("🚻 Relieved. Toilet +40. No story.");
+    spendMinutes(MINUTES.toilet);
   };
 
   // travel home the normal way (fare/energy apply), then stand at the district spawn
@@ -864,13 +892,17 @@ export default function Home() {
       push("💼 Too tired for shift. Chop or rest first (−20⚡ needed).");
       return;
     }
+    if (!shiftOpen(minuteRef.current, c.shiftHour)) {
+      push(`💼 ${c.workplace} shift starts at ${formatTime(c.shiftHour * 60)}. It's ${formatTime(minuteRef.current)} now.`);
+      return;
+    }
     const level = careerLevels[c.id] ?? entryLevel(c.id, bg.connections);
     const pay = careerPay(c.id, level);
     setLastShiftDay(day);
     // a shift costs 20⚡ in total: 15 here + 5 from earn()
     setEnergy((e) => Math.max(5, e - 15));
     addSkill(c.skill, 20);
-    earn(pay, 2, `💼 Shift complete: ${c.levels[level - 1].title} @ ${c.workplace}. +₦${pay.toLocaleString()}, ${c.skill} +20 XP.`);
+    earn(pay, 2, `💼 Shift complete: ${c.levels[level - 1].title} @ ${c.workplace}. +₦${pay.toLocaleString()}, ${c.skill} +20 XP.`, undefined, MINUTES.shift);
   };
 
   const promote = () => {
@@ -905,12 +937,15 @@ export default function Home() {
     }
     const km = getDist(node, id);
     const label = MAP_NODES.find((n) => n.id === id)?.name ?? id;
+    const tripMins = (mode: "trek" | "micra" | "car") =>
+      Math.round(km * (TRANSPORT.find((t) => t.id === mode)?.minPerKm ?? 6)) + (mode === "micra" ? MINUTES.micraWait : 0);
     if (km <= 2) {
       setNode(id);
       setAvatarZone(id);
       recordVisit(id);
       teleportTo(id);
-      push(`🚶 Short waka to ${label} — free. Legs still dey.`);
+      push(`🚶 Short waka to ${label} — free, ${tripMins("trek")} min. Legs still dey.`);
+      spendMinutes(tripMins("trek"));
       return;
     }
     if (travelMode === "trek") {
@@ -924,7 +959,8 @@ export default function Home() {
       setAvatarZone(id);
       recordVisit(id);
       teleportTo(id);
-      push(`🚶 Trekked ${km}km to ${label} (−${cost}⚡). Free, but legs don hear am.`);
+      push(`🚶 Trekked ${km}km to ${label} in ${tripMins("trek")} min (−${cost}⚡). Free, but legs don hear am.`);
+      spendMinutes(tripMins("trek"));
       return;
     }
     if (travelMode === "car" && bg.hasCar) {
@@ -933,7 +969,8 @@ export default function Home() {
       setAvatarZone(id);
       recordVisit(id);
       teleportTo(id);
-      push(`🚗 Drove to ${label}, ${km}km. Fuel is already paid for today.`);
+      push(`🚗 Drove to ${label}, ${km}km in ${tripMins("car")} min. Fuel is already paid for today.`);
+      spendMinutes(tripMins("car"));
       return;
     }
     const fare = micraFare(km);
@@ -947,7 +984,8 @@ export default function Home() {
     setAvatarZone(id);
     recordVisit(id);
     teleportTo(id);
-    push(`🚐 Micra to ${label}, ${km}km — ${naira(fare)}. Conductor shout your change complete.`);
+    push(`🚐 Micra to ${label}, ${km}km — ${naira(fare)}, ${tripMins("micra")} min with the wait. Conductor shout your change complete.`);
+    spendMinutes(tripMins("micra"));
   };
 
   // wardrobe: game money now, real naira later (ngn tags ride along)
@@ -985,6 +1023,7 @@ export default function Home() {
       social: Math.min(100, n.social + 5),
     }));
     push(`💸 You spray ₦${amt.toLocaleString()} at Fuji night! Half rains on ${HOODS.find((h) => h.id === myHood)?.name}.`);
+    spendMinutes(MINUTES.spray);
   };
   const danceOwambe = () => {
     if (energy < 10) return;
@@ -994,6 +1033,7 @@ export default function Home() {
     setIwa((v) => Math.min(100, v + iw));
     setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + fun) }));
     push(`💃 You shut down the dance floor. Iwa +${iw}, fun +${fun}. Knees −10⚡.`);
+    spendMinutes(MINUTES.dance);
   };
 
   // interstate terminal runs (Ajala discount applied in Terminal display)
@@ -1014,7 +1054,7 @@ export default function Home() {
     if (authUser) pendingTurf.current += gain;
     jot(`Day ${day}: interstate run done — goods offloaded.`);
     push(msg);
-    spendActions(TERMINAL_ACTIONS);
+    spendMinutes(MINUTES.interstate);
   };
 
   // daily hunt claim (one per weekday per real date)
@@ -1234,7 +1274,7 @@ export default function Home() {
             <span className="mx-1.5 opacity-50">/</span>
             <span className="text-charcoal">Play</span>
             <span className="mx-1.5 opacity-50">·</span>
-            <span>🌅 Day {day}</span>
+            <span>{calendarFor(day).label}</span>
           </span>
           <a href="/how-to-play" className="hover:text-roof">How to play →</a>
         </nav>
@@ -1243,7 +1283,8 @@ export default function Home() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <div className="font-display text-base font-extrabold tracking-tight">@{username} <span className="text-mapo">· {title}</span></div>
-              <div className="text-xs text-cream/60">{nodeName} · {bg.name} · {gender === "okunrin" ? "Ọkùnrin" : "Obìnrin"}</div>
+              <div className="text-xs text-cream/60">{nodeName} · {bg.name} · {gender === "okunrin" ? "Ọkùnrin" : "Obìnrin"} · Age {ageOn(day)}</div>
+              <div className="mt-0.5 text-xs font-bold text-mapo" aria-label="Time">{{ morning: "🌅", afternoon: "☀️", evening: "🌇", night: "🌙" }[partOfDay(minute)]} {formatTime(minute)} · {calendarFor(day).weekday} {calendarFor(day).date} {calendarFor(day).month}</div>
             </div>
             <div className="flex flex-wrap items-center gap-1.5 text-[13px]">
               <span className="rounded-full bg-gradient-to-r from-mapo to-[#f5c04a] px-3 py-1 font-extrabold text-charcoal">{naira(ola)}</span>
@@ -1587,7 +1628,7 @@ export default function Home() {
                           </div>
                           <div className="mt-2.5 flex gap-2">
                             <button onClick={workShift} disabled={lastShiftDay === day} className="flex-1 rounded-full bg-gradient-to-r from-mapo to-[#f5c04a] py-2 text-sm font-extrabold text-charcoal disabled:opacity-40">
-                              {lastShiftDay === day ? "Shift done ✅" : "Work shift −20⚡"}
+                              {lastShiftDay === day ? "Shift done ✅" : `Work shift −20⚡ · starts ${formatTime(c.shiftHour * 60)}, 8h`}
                             </button>
                             {next && (
                               <button onClick={promote} className="flex-1 rounded-full bg-white/10 py-2 text-sm font-bold hover:bg-white/15">
@@ -1728,7 +1769,7 @@ export default function Home() {
                   avatarColor={topColor}
                   onSleep={() => {
                     const bonus = 40 + home.furniture.reduce((s, id) => s + (FURNITURE.find((f) => f.id === id)?.rest ?? 0), 0);
-                    restHome(bonus, `😴 Slept in your own bed. Energy +${bonus}.`);
+                    sleep(bonus);
                   }}
                 />
               </div>
@@ -1965,7 +2006,7 @@ export default function Home() {
                 <button onClick={freshen} className="rounded-full bg-white/10 px-2 py-1.5 text-[11px] font-bold hover:bg-white/15">🚿 Freshen {naira(PRICES.bucketBath)}</button>
                 <button onClick={useToilet} className="rounded-full bg-white/10 px-2 py-1.5 text-[11px] font-bold hover:bg-white/15">🚻 Toilet</button>
               </div>
-              <div className="mt-2 text-xs text-cream/55">🌅 Day {day} · {nodeName}</div>
+              <div className="mt-2 text-xs text-cream/55">{{ morning: "🌅", afternoon: "☀️", evening: "🌇", night: "🌙" }[partOfDay(minute)]} {formatTime(minute)}, {calendarFor(day).label} · {nodeName}</div>
             </div>
             <div className="rounded-3xl bg-white p-4 ring-1 ring-roof/10">
               <h3 className="font-display text-base font-extrabold tracking-tight">{bg.id === "alowonle" ? "👔 Family" : "🍲 Family"}</h3>

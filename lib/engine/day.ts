@@ -18,9 +18,8 @@ import {
   type QuizQ,
 } from "@/lib/game";
 import type { Needs } from "./save";
+import { ageOn, calendarFor, isBirthday } from "./clock";
 
-/** Hustle actions that make up one in-game day. */
-export const ACTIONS_PER_DAY = 6;
 /** Chance a new day brings a life event. */
 export const EVENT_CHANCE = 0.75;
 
@@ -68,10 +67,15 @@ export function advanceDay(input: DayInput): DayResult {
     iwaDelta: 0,
     energyDelta: 0,
     bondDelta: 0,
-    messages: [`🌅 Day ${day} for Ibadan. New mercy, new hustle.`],
+    messages: [`🌅 ${calendarFor(day).label}. New mercy, new hustle.`],
     journal: [],
     event: null,
   };
+  if (isBirthday(day)) {
+    const age = ageOn(day);
+    r.messages.push(`🎂 You are ${age} today. Ẹ kú ọdún, ẹ kú ìyẹ́dún!`);
+    r.journal.push(`Day ${day}: turned ${age}.`);
+  }
 
   // background life: upkeep, allowance, obligations
   const upkeep = upkeepFor(bg);
@@ -166,5 +170,3 @@ export function titleFor(ola: number, iwa: number): (typeof TITLE_LADDER)[number
 
 /** Energy needed to board, and spent by, one interstate run. */
 export const TERMINAL_ENERGY = 25;
-/** An interstate run eats this many hustle actions of the day. */
-export const TERMINAL_ACTIONS = 3;

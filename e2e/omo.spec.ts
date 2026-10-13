@@ -13,6 +13,7 @@ interface OmoState {
   iwa: number;
   energy: number;
   day: number;
+  minute: number;
   avatarZone: string;
   nearDoor: string | null;
   doorOpen: string | null;
@@ -234,6 +235,23 @@ test.describe("Omo Ibadan E2E", () => {
     expect(after.bond).toBe(before.bond);
     expect(after.bg).toBe(before.bg);
     expect(after.journal).toBe(before.journal);
+  });
+
+  test("the clock: you start at 6 am aged 18, hustles take time, sleep wakes you at 6 am", async ({ page }) => {
+    await startGame(page, "ClockWaka");
+    let s = await state(page);
+    expect(s.minute).toBe(6 * 60);
+    await expect(page.getByLabel("Time")).toContainText("6:00 am");
+    await expect(page.getByText(/Age 18/).first()).toBeVisible();
+    await page.getByRole("button", { name: /Help Mama at the stall/ }).click(); // 3 hours
+    s = await state(page);
+    expect(s.minute).toBe(9 * 60);
+    await page.getByRole("button", { name: "🏠 Ilé" }).click();
+    await page.getByRole("button", { name: /Sleep here/ }).click();
+    s = await state(page);
+    expect(s.day).toBe(2);
+    expect(s.minute).toBe(6 * 60);
+    await expect(page.getByText("Tue 5 Jan 2027").first()).toBeVisible();
   });
 
   test("no uncaught errors from load through first hustle", async ({ page }) => {

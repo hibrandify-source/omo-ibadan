@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { BACKGROUNDS, EXAM_POOL, MAP_NODES, PRICES, distanceKm, emptySkills, grantXp, MAX_SKILL_LEVEL } from "@/lib/game";
 import { mapDistrict, roadKm } from "@/lib/map/ibadan";
 import {
+  WAKE_MINUTE, advanceClock, ageOn, calendarFor, formatTime, isBirthday, minutesUntilMorning, partOfDay, shiftOpen,
+} from "@/lib/engine/clock";
+import {
   chooseSave,
   cloudRowFor,
   defaultSave,
@@ -196,6 +199,53 @@ describe("city map (OpenStreetMap)", () => {
     expect(d("challenge").y).toBeGreaterThan(d("mapo").y); // Challenge is south of Mapo
     expect(d("iwo-road").x).toBeGreaterThan(d("dugbe").x); // Iwo Road is east of Dugbe
     expect(d("eleyele").x).toBeLessThan(d("bodija").x); // Eleyele is west of Bodija
+  });
+});
+
+describe("clock and calendar", () => {
+  it("rolls over midnight into new days", () => {
+    expect(advanceClock(WAKE_MINUTE, 90)).toEqual({ minute: 450, newDays: 0 });
+    expect(advanceClock(23 * 60, 120)).toEqual({ minute: 60, newDays: 1 });
+    expect(advanceClock(0, 1440 * 2 + 5)).toEqual({ minute: 5, newDays: 2 });
+  });
+
+  it("sleep always ends at 6 am", () => {
+    expect(minutesUntilMorning(22 * 60)).toBe(8 * 60);
+    expect(minutesUntilMorning(2 * 60)).toBe(4 * 60);
+    expect(advanceClock(22 * 60, minutesUntilMorning(22 * 60)).minute).toBe(WAKE_MINUTE);
+  });
+
+  it("day 1 is Monday 4 January 2027 and you are 18", () => {
+    expect(calendarFor(1).label).toBe("Mon 4 Jan 2027");
+    expect(calendarFor(8).weekday).toBe("Mon");
+    expect(ageOn(1)).toBe(18);
+    expect(ageOn(365)).toBe(19);
+    expect(isBirthday(1)).toBe(false);
+    const firstBirthday = Array.from({ length: 400 }, (_, i) => i + 1).find(isBirthday);
+    expect(ageOn(firstBirthday!)).toBe(19);
+  });
+
+  it("shifts open an hour early and close three hours late, night shifts too", () => {
+    expect(shiftOpen(8 * 60, 9)).toBe(true);
+    expect(shiftOpen(12 * 60, 9)).toBe(true);
+    expect(shiftOpen(12 * 60 + 1, 9)).toBe(false);
+    expect(shiftOpen(15 * 60, 9)).toBe(false);
+    expect(shiftOpen(30, 22)).toBe(true); // 12:30 am, DJ shift started 10 pm
+    expect(shiftOpen(14 * 60, 22)).toBe(false);
+  });
+
+  it("formats times the way people say them", () => {
+    expect(formatTime(0)).toBe("12:00 am");
+    expect(formatTime(WAKE_MINUTE + 30)).toBe("6:30 am");
+    expect(formatTime(13 * 60 + 5)).toBe("1:05 pm");
+    expect(partOfDay(7 * 60)).toBe("morning");
+    expect(partOfDay(23 * 60)).toBe("night");
+  });
+
+  it("new days announce the date, and old saves start the day at 6 am", () => {
+    const r = advanceDay({ day: 2, bg: BACKGROUNDS["omo-iya-lobe"], bond: 60, needs: defaultSave().needs, trait: null, paidObligations: [], eventPending: false, rand: () => 0.99 });
+    expect(r.messages[0]).toMatch(/Tue 5 Jan 2027/);
+    expect(migrateSave({ v: 2, started: true, actions: 4 })!.minute).toBe(WAKE_MINUTE);
   });
 });
 
