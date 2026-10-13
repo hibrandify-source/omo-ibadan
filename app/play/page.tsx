@@ -500,10 +500,16 @@ export default function Home() {
       const { getSupabase } = await import("@/lib/supabase");
       const sb = getSupabase();
       if (!sb || dead) return;
+      // getSession also finishes a sign-in from the email link (?code=…); tidy the URL afterwards
       sb.auth.getSession().then(({ data }) => {
         if (dead) return;
         const u = data.session?.user;
         if (u) setAuthUser({ id: u.id, email: u.email ?? "" });
+        const url = new URL(window.location.href);
+        if (url.searchParams.has("code")) {
+          url.searchParams.delete("code");
+          window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+        }
       });
       const { data: sub } = sb.auth.onAuthStateChange((_ev, session) => {
         const u = session?.user;

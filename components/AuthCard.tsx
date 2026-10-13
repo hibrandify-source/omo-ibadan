@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { getSupabase, supabaseConfigured } from "@/lib/supabase";
 
-// Email OTP auth (no passwords — best for students). Renders inside HUD settings.
+// Email sign-in, no passwords. The email carries a sign-in link (back to /play)
+// and, when the project uses custom SMTP with {{ .Token }} in the template, a
+// 6-digit code too. Either works. Renders inside HUD settings.
 export default function AuthCard({
   user,
   onAuth,
@@ -56,15 +58,15 @@ export default function AuthCard({
     setMsg("");
     const { error } = (await getSupabase()?.auth.signInWithOtp({
       email: email.trim(),
-      options: { shouldCreateUser: true },
+      options: { shouldCreateUser: true, emailRedirectTo: `${window.location.origin}/play` },
     })) ?? { error: new Error("no backend") };
     setBusy(false);
     if (error) {
-      setMsg("Could not send code — check network, try again.");
+      setMsg("Could not send the email. Check your network, or wait a few minutes and try again.");
       return;
     }
     setStage("code");
-    setMsg("6-digit code sent. Check inbox/spam.");
+    setMsg("Email sent (check spam too). Tap the sign-in link in it, in this same browser, or type the code if it has one.");
   };
 
   const verify = async () => {
@@ -101,7 +103,7 @@ export default function AuthCard({
             className="w-full rounded-full bg-cream px-3 py-2 text-xs ring-1 ring-roof/10 outline-none"
           />
           <button onClick={send} disabled={busy} className="shrink-0 rounded-full bg-charcoal px-4 py-2 text-xs font-bold text-cream disabled:opacity-40">
-            {busy ? "…" : "Code →"}
+            {busy ? "…" : "Email me →"}
           </button>
         </div>
       ) : (
@@ -109,7 +111,7 @@ export default function AuthCard({
           <input
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            placeholder="6-digit code"
+            placeholder="6-digit code (if your email has one)"
             inputMode="numeric"
             className="w-full rounded-full bg-cream px-3 py-2 text-xs ring-1 ring-roof/10 outline-none"
           />
