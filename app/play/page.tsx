@@ -68,6 +68,9 @@ import {
   shiftOpen,
 } from "@/lib/engine/clock";
 import CityMap from "@/components/CityMap";
+import StreetScene from "@/components/StreetScene";
+import { streetSceneFor } from "@/lib/scenes";
+import { playerSpec } from "@/lib/art/player";
 import DistrictScene from "@/components/DistrictScene";
 import { hasScene, sceneFor } from "@/lib/districts";
 import RoomCard from "@/components/RoomCard";
@@ -224,6 +227,8 @@ export default function Home() {
   const [avatarZone, setAvatarZone] = useState("ui-gate");
   const [home, setHome] = useState<HomeSave>(emptyHome);
   const [teleport, setTeleport] = useState<Teleport | null>(null);
+  // where the player appears in a walkable scene: their door, or the gate when arriving
+  const [sceneEntry, setSceneEntry] = useState<{ key: number; at: "spawn" | "arrive" }>({ key: 0, at: "spawn" });
   // 4A shell: quality + settings menu
   const [saver, setSaver] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -599,7 +604,7 @@ export default function Home() {
     setNode(bg.homeZone);
     setAvatarZone(bg.homeZone);
     recordVisit(bg.homeZone);
-    teleportTo(bg.homeZone);
+    teleportTo(bg.homeZone, "spawn");
     const g = GENDERS.find((x) => x.id === gender)!;
     jot(`Day 1: born ${bg.name}. ${bg.homeLabel}.`);
     push(`Ẹ káàbọ̀ sí Ìbàdàn, ${username}! ${g.yoruba} · ${bg.name}. You start with ${naira(pocket)}.${extra}`);
@@ -845,11 +850,47 @@ export default function Home() {
   const goHome = () => {
     setTab("map");
     if (node === bg.homeZone) {
-      teleportTo(bg.homeZone);
+      teleportTo(bg.homeZone, "spawn");
       push(`🏠 Back at ${bg.homeLabel}. Your room dey wait.`);
       return;
     }
     travelTo(bg.homeZone);
+  };
+
+  // ---- walkable scene actions ----
+  const sceneDoor = (id: string) => {
+    if (id === "mama-room") {
+      setTab("ile");
+      setIleView("room");
+      return;
+    }
+    if (id === "mama-pot") {
+      if (partOfDay(minuteRef.current) !== "evening") {
+        push("🍲 The pot is cold. Mama is at her Oja'ba stall until evening; Oja'ba is a short walk away.");
+        return;
+      }
+      familyDuty();
+      return;
+    }
+    if (id === "shop") {
+      meet("Iya Basira");
+      push("🛒 Iya Basira: \"Provisions don land. Milo, sugar, Indomie, everything. Your Mama's credit is still open.\"");
+      spendMinutes(MINUTES.shop);
+    }
+  };
+  const sceneTalk = (npcId: string, line: string) => {
+    meet(npcId);
+    setNeeds((n) => ({ ...n, social: Math.min(100, n.social + 6) }));
+    push(`💬 ${npcId}: "${line}"`);
+    spendMinutes(MINUTES.greet);
+  };
+  const sceneExit = (to: string) => {
+    if (to === "map") {
+      document.getElementById("city-map")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      push("🚏 At the bus stop. Pick where you're going on the map.");
+      return;
+    }
+    travelTo(to);
   };
 
   const onAvatarZone = (id: string) => {
@@ -860,7 +901,8 @@ export default function Home() {
     push(`🚶 You waka enter ${label}.${enter ? ` ${enter.label} →` : ""}`);
   };
 
-  const teleportTo = (id: string) => {
+  const teleportTo = (id: string, at: "spawn" | "arrive" = "arrive") => {
+    if (streetSceneFor(id)) setSceneEntry((e) => ({ key: e.key + 1, at }));
     const s = sceneFor(id);
     if (!s) return;
     setTeleport((t) => ({ x: s.spawn.x, y: s.spawn.y, key: (t?.key ?? 0) + 1 }));
@@ -1525,7 +1567,18 @@ export default function Home() {
                     <p className="text-xs text-cream/55">Tap to waka · 🚪 markers na doors, no tabs · tap people to greet</p>
                   </div>
                 </div>
-                {hasScene(avatarZone) ? (
+                {streetSceneFor(avatarZone) ? (
+                  <StreetScene
+                    scene={streetSceneFor(avatarZone)!}
+                    minute={minute}
+                    player={playerSpec({ gender, skin: look.skin, top: topColor, gear })}
+                    entry={sceneEntry}
+                    npcMeets={Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets]))}
+                    onDoor={sceneDoor}
+                    onExit={sceneExit}
+                    onTalk={sceneTalk}
+                  />
+                ) : hasScene(avatarZone) ? (
                   <DistrictScene
                     zone={avatarZone}
                     playerName={username}
@@ -1544,7 +1597,7 @@ export default function Home() {
                   </div>
                 )}
               </div>
-              <div className="rounded-3xl bg-white p-4 shadow-[0_16px_40px_-20px_rgba(122,74,43,0.35)] ring-1 ring-roof/10 sm:p-5">
+              <div id="city-map" className="rounded-3xl bg-white p-4 shadow-[0_16px_40px_-20px_rgba(122,74,43,0.35)] ring-1 ring-roof/10 sm:p-5">
                 <h3 className="font-display text-base font-extrabold tracking-tight">🗺 Ibadan</h3>
                 <p className="mb-2 text-xs text-charcoal/55">Real roads, real distances. Micra about {naira(PRICES.transport.micraFarePerKm)}/km, trek free but tiring{bg.hasCar ? ", your car runs on the day's fuel" : ""}. ≤2km na free waka.</p>
                 <div className="mb-3 flex gap-1.5 rounded-full bg-cream p-1 text-xs font-bold ring-1 ring-roof/10">
@@ -1556,7 +1609,7 @@ export default function Home() {
                 </div>
                 <CityMap
                   current={node}
-                  playable={hasScene}
+                  playable={(id) => hasScene(id) || !!streetSceneFor(id)}
                   fareFor={(id) => {
                     const km = getDist(node, id);
                     if (km <= 2) return "short waka · free";

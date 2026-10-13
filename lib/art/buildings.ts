@@ -348,7 +348,8 @@ export interface FenceSpec {
   x1: number;
   y: number;
   h: number;
-  gate?: { x: number; w: number; color: string };
+  /** `open`: leaves swung back against the wall, so you see through the gateway */
+  gate?: { x: number; w: number; color: string; open?: boolean };
   glassTop?: boolean;
   wall: string;
   seed: number;
@@ -387,7 +388,23 @@ export function drawFence(ctx: Ctx, f: FenceSpec) {
     ctx.lineWidth = 0.02;
     ctx.strokeRect(a, top, b - a, f.h * K);
   }
-  if (f.gate) {
+  if (f.gate?.open) {
+    // two leaves folded back, seen edge-on at either side of the gateway
+    const { x, w, color } = f.gate;
+    for (const lx of [x, x + w - 0.5]) {
+      ctx.fillStyle = color;
+      ctx.fillRect(lx, top - 0.1, 0.5, f.h * K + 0.1);
+      for (let i = 1; i < 4; i++) line(ctx, lx + i * 0.12, top - 0.1, lx + i * 0.12, fy, shade(color, -0.25), 0.015);
+      ctx.strokeStyle = shade(color, -0.5);
+      ctx.lineWidth = 0.02;
+      ctx.strokeRect(lx, top - 0.1, 0.5, f.h * K + 0.1);
+    }
+    // gate posts
+    for (const px of [x - 0.15, x + w - 0.05]) {
+      ctx.fillStyle = shade(f.wall, -0.15);
+      ctx.fillRect(px, top - 0.3, 0.2, f.h * K + 0.3);
+    }
+  } else if (f.gate) {
     const { x, w, color } = f.gate;
     ctx.fillStyle = color;
     ctx.fillRect(x, top - 0.1, w, f.h * K + 0.1);

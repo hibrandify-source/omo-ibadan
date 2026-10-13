@@ -254,6 +254,29 @@ test.describe("Omo Ibadan E2E", () => {
     await expect(page.getByText("Tue 5 Jan 2027").first()).toBeVisible();
   });
 
+  test("Beere: Omo Iya Lobe starts at home in the walkable compound", async ({ page }) => {
+    await startGame(page, "BeereWaka");
+    expect((await state(page)).avatarZone).toBe("beere");
+    await expect(page.getByRole("img", { name: /Beere, walkable street/ })).toBeVisible();
+    const moveTo = (x: number, y: number) =>
+      page.evaluate(([px, py]) => (window as unknown as { __omoScene: { moveTo: (x: number, y: number) => void } }).__omoScene.moveTo(px, py), [x, y] as [number, number]);
+    // the landlord is on his bench in the morning
+    await moveTo(34.4, 25.4);
+    await page.getByRole("button", { name: /Talk to Baba Ade/ }).click();
+    let s = await state(page);
+    expect(s.feed[0]).toMatch(/Baba Ade/);
+    expect(s.npc["Baba Ade"]).toBe(1);
+    // Mama is at her Oja'ba stall in the morning, so the pot is cold
+    await moveTo(20.5, 21.3);
+    await page.getByRole("button", { name: /Help Mama at the pot/ }).click();
+    s = await state(page);
+    expect(s.feed[0]).toMatch(/pot is cold/);
+    // your own door leads into your room
+    await moveTo(18.1, 17.0);
+    await page.getByRole("button", { name: /Enter your room/ }).click();
+    expect((await state(page)).tab).toBe("ile");
+  });
+
   test("no uncaught errors from load through first hustle", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (e) => pageErrors.push(e.message));

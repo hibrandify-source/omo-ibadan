@@ -1,0 +1,439 @@
+"use client";
+
+// A walkable street/compound scene drawn with the art kit, using the tilted
+// street camera. Tap (or WASD/arrows) to walk; walls block you; stand near a
+// door, exit or person to get an action. Static art is rendered once into
+// cached sprites; each frame only depth-sorts and draws what moves.
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { G, K, TILT_STREET, setTilt, type Ctx, type Dir } from "@/lib/art/core";
+import { drawBuilding, drawFence, drawGenerator, drawKiosk, drawWaterTank } from "@/lib/art/buildings";
+import { drawBench, drawLaterite, drawPalm, drawPole, drawRoad, drawSignboard, drawTree, drawUmbrellaStall } from "@/lib/art/ground";
+import { drawChickens, drawDrum, drawPots } from "@/lib/art/props";
+import { drawPerson, type PersonSpec } from "@/lib/art/people";
+import { CAST } from "@/lib/art/cast";
+import { partOfDay } from "@/lib/engine/clock";
+import type { PropKind, SceneDef, SceneNpc } from "@/lib/scenes/types";
+
+type Near =
+  | { type: "door"; id: string; label: string }
+  | { type: "exit"; id: string; to: string; label: string }
+  | { type: "npc"; id: string; label: string };
+
+interface Sprite {
+  canvas: HTMLCanvasElement;
+  /** world-screen metres of the sprite's top-left (x, y already tilted) */
+  x0: number;
+  y0: number;
+  w: number;
+  h: number;
+  /** depth: ground y in world metres */
+  sortY: number;
+}
+
+interface Rect { x: number; y: number; w: number; h: number }
+
+const WALK_SPEED = 1.5; // m/s
+
+/** Bounds of a prop's drawing around its origin, in screen metres. */
+function propBounds(p: PropKind): [number, number, number, number] {
+  switch (p.kind) {
+    case "tree": return [-p.size * 1.4, -(2.2 + p.size * 1.4) * K - 0.5, p.size * 1.8, 1];
+    case "palm": return [-2.5, -p.height * K - 2, 3, 1];
+    case "pole": return [-1.2, -9 * K, 1.6, 0.6];
+    case "kiosk": return [-0.8, -3 * K - 0.6, 3.6, 1.6];
+    case "umbrella": return [-1.6, -3.2, 1.9, 1.2];
+    case "signboard": return [-p.w / 2 - 0.3, -2.8 * K, p.w / 2 + 0.3, 0.5];
+    case "tank": return [-1, -4.4 * K - 0.5, 1, 0.8];
+    case "bench": return [-1, -0.9, 1, 0.4];
+    default: return [-1, -1.5, 1, 0.5];
+  }
+}
+
+/** Ground footprint that blocks walking, in world metres (relative to origin). */
+function propBlock(p: PropKind): Rect | null {
+  switch (p.kind) {
+    case "tree": return { x: -0.3, y: -0.3, w: 0.6, h: 0.6 };
+    case "palm": return { x: -0.3, y: -0.3, w: 0.6, h: 0.6 };
+    case "pole": return { x: -0.15, y: -0.15, w: 0.3, h: 0.3 };
+    case "kiosk": return { x: 0, y: 0, w: 2.4, h: 1.4 };
+    case "umbrella": return { x: -0.8, y: -0.4, w: 1.6, h: 0.8 };
+    case "tank": return { x: -0.7, y: -0.6, w: 1.4, h: 1.2 };
+    case "bench": return { x: -0.8, y: -0.25, w: 1.6, h: 0.5 };
+    case "pots": return { x: -0.9, y: -0.5, w: 1.9, h: 1 };
+    case "drum": return { x: -0.35, y: -0.35, w: 0.7, h: 0.7 };
+    case "signboard": return { x: -p.w / 2, y: -0.1, w: p.w, h: 0.2 };
+    default: return null;
+  }
+}
+
+function drawProp(ctx: Ctx, p: PropKind, seed: number, t: number) {
+  switch (p.kind) {
+    case "tree": return drawTree(ctx, p.size, seed);
+    case "palm": return drawPalm(ctx, p.height, seed);
+    case "pole": drawPole(ctx); return;
+    case "kiosk": return drawKiosk(ctx, p.color, p.text, seed);
+    case "umbrella": return drawUmbrellaStall(ctx, p.colors, p.goods, seed);
+    case "signboard": return drawSignboard(ctx, p.text, p.bg, p.fg, p.w);
+    case "tank": return drawWaterTank(ctx);
+    case "bench": return drawBench(ctx);
+    case "generator": return drawGenerator(ctx, p.running, t);
+    case "pots": return drawPots(ctx, t);
+    case "drum": return drawDrum(ctx, p.color);
+    case "chickens": return drawChickens(ctx, p.n, t, seed);
+  }
+}
+
+const ANIMATED = new Set(["generator", "pots", "chickens"]);
+
+function makeSprite(pxPerM: number, bounds: [number, number, number, number], draw: (ctx: Ctx) => void): Omit<Sprite, "sortY"> {
+  const [x0, y0, x1, y1] = bounds;
+  const cv = document.createElement("canvas");
+  cv.width = Math.max(1, Math.ceil((x1 - x0) * pxPerM));
+  cv.height = Math.max(1, Math.ceil((y1 - y0) * pxPerM));
+  const ctx = cv.getContext("2d")!;
+  ctx.scale(pxPerM, pxPerM);
+  ctx.translate(-x0, -y0);
+  draw(ctx);
+  return { canvas: cv, x0, y0, w: x1 - x0, h: y1 - y0 };
+}
+
+export default function StreetScene({
+  scene,
+  minute,
+  player,
+  entry,
+  npcMeets,
+  onDoor,
+  onExit,
+  onTalk,
+}: {
+  scene: SceneDef;
+  minute: number;
+  player: PersonSpec;
+  /** change `key` to place the player: at their door ("spawn") or the gate ("arrive") */
+  entry: { key: number; at: "spawn" | "arrive" };
+  npcMeets: Record<string, number>;
+  onDoor: (id: string) => void;
+  onExit: (to: string) => void;
+  onTalk: (npcId: string, line: string) => void;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const cvRef = useRef<HTMLCanvasElement>(null);
+  const pos = useRef({ ...scene.spawn });
+  const target = useRef<{ x: number; y: number } | null>(null);
+  const keys = useRef(new Set<string>());
+  const facing = useRef<Dir>("S");
+  const phase = useRef(0);
+  const moving = useRef(false);
+  const [near, setNear] = useState<Near | null>(null);
+  const nearRef = useRef<Near | null>(null);
+  const minuteRef = useRef(minute);
+  minuteRef.current = minute;
+  const playerRef = useRef(player);
+  playerRef.current = player;
+
+  // place the player on entry
+  useEffect(() => {
+    const p = entry.at === "spawn" ? scene.spawn : scene.arrive;
+    pos.current = { ...p };
+    target.current = null;
+    facing.current = entry.at === "spawn" ? "S" : "N";
+  }, [entry.key, entry.at, scene]);
+
+  const blockers = useMemo<Rect[]>(() => {
+    const r: Rect[] = [];
+    for (const b of scene.buildings) r.push({ x: b.x, y: b.y, w: b.spec.w, h: b.spec.d });
+    for (const f of scene.fences) {
+      const segs: [number, number][] = f.gate ? [[f.x0, f.gate.x], [f.gate.x + f.gate.w, f.x1]] : [[f.x0, f.x1]];
+      for (const [a, b] of segs) if (b > a) r.push({ x: a, y: f.y - 0.2, w: b - a, h: 0.4 });
+    }
+    for (const p of scene.props) {
+      const k = propBlock(p.spec);
+      if (k) r.push({ x: p.x + k.x, y: p.y + k.y, w: k.w, h: k.h });
+    }
+    return r;
+  }, [scene]);
+
+  const npcHere = (n: SceneNpc) => n.at[partOfDay(minuteRef.current)];
+
+  // ---- render loop
+  useEffect(() => {
+    const cv = cvRef.current;
+    const wrap = wrapRef.current;
+    if (!cv || !wrap) return;
+    setTilt(TILT_STREET);
+    let raf = 0;
+    let last = performance.now();
+    let cache: { key: string; ground: Sprite; statics: Sprite[] } | null = null;
+
+    const buildCache = (pxPerM: number) => {
+      const ground = makeSprite(pxPerM, [0, 0, scene.w, scene.h * G], (ctx) => {
+        drawLaterite(ctx, 0, 0, scene.w, scene.h, scene.ground.seed, scene.ground.grassy);
+        for (const y of scene.yards) {
+          ctx.fillStyle = "rgba(205,140,95,0.35)";
+          ctx.fillRect(y.x, y.y * G, y.w, y.h * G);
+        }
+        for (const r of scene.roads) drawRoad(ctx, r);
+      });
+      const statics: Sprite[] = [];
+      for (const b of scene.buildings) {
+        const s = b.spec;
+        const s0 = makeSprite(pxPerM, [-1, -(s.h + 3) * K - 1, s.w + 1 + s.h * 0.5, s.d * G + 0.7], (ctx) => drawBuilding(ctx, s));
+        statics.push({ ...s0, x0: b.x + s0.x0, y0: b.y * G + s0.y0, sortY: b.y + s.d });
+      }
+      for (const f of scene.fences) {
+        const s0 = makeSprite(pxPerM, [f.x0 - 0.5, f.y * G - (f.h + 0.6) * K, f.x1 + 0.5, f.y * G + 0.4], (ctx) => drawFence(ctx, f));
+        statics.push({ ...s0, sortY: f.y });
+      }
+      for (const p of scene.props) {
+        if (ANIMATED.has(p.spec.kind)) continue;
+        const s0 = makeSprite(pxPerM, propBounds(p.spec), (ctx) => drawProp(ctx, p.spec, p.seed ?? 1, 0));
+        statics.push({ ...s0, x0: p.x + s0.x0, y0: p.y * G + s0.y0, sortY: p.y });
+      }
+      return { ground: { ...ground, sortY: -1 }, statics };
+    };
+
+    const blocked = (x: number, y: number) =>
+      x < 0.3 || y < 0.3 || x > scene.w - 0.3 || y > scene.h - 0.3 ||
+      blockers.some((r) => x > r.x - 0.2 && x < r.x + r.w + 0.2 && y > r.y - 0.15 && y < r.y + r.h + 0.15);
+
+    const step = (dt: number) => {
+      let vx = 0, vy = 0;
+      const k = keys.current;
+      if (k.has("ArrowLeft") || k.has("a")) vx -= 1;
+      if (k.has("ArrowRight") || k.has("d")) vx += 1;
+      if (k.has("ArrowUp") || k.has("w")) vy -= 1;
+      if (k.has("ArrowDown") || k.has("s")) vy += 1;
+      if (vx || vy) target.current = null;
+      else if (target.current) {
+        const dx = target.current.x - pos.current.x;
+        const dy = target.current.y - pos.current.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 0.08) target.current = null;
+        else { vx = dx / d; vy = dy / d; }
+      }
+      const len = Math.hypot(vx, vy);
+      moving.current = len > 0;
+      if (!len) return;
+      vx /= len; vy /= len;
+      const nx = pos.current.x + vx * WALK_SPEED * dt;
+      const ny = pos.current.y + vy * WALK_SPEED * dt;
+      // slide along walls
+      if (!blocked(nx, ny)) pos.current = { x: nx, y: ny };
+      else if (!blocked(nx, pos.current.y)) pos.current = { x: nx, y: pos.current.y };
+      else if (!blocked(pos.current.x, ny)) pos.current = { x: pos.current.x, y: ny };
+      else { target.current = null; moving.current = false; }
+      facing.current = Math.abs(vx) > Math.abs(vy) ? (vx > 0 ? "E" : "W") : vy > 0 ? "S" : "N";
+      phase.current += dt * 9;
+    };
+
+    const findNear = (): Near | null => {
+      const p = pos.current;
+      let best: Near | null = null;
+      let bd = Infinity;
+      const consider = (x: number, y: number, r: number, n: Near) => {
+        const d = Math.hypot(p.x - x, p.y - y);
+        if (d < r && d < bd) { bd = d; best = n; }
+      };
+      for (const d of scene.doors) consider(d.x, d.y, d.radius ?? 1.4, { type: "door", id: d.id, label: d.label });
+      for (const e of scene.exits) consider(e.x, e.y, e.radius ?? 1.6, { type: "exit", id: e.id, to: e.to, label: e.label });
+      for (const n of scene.npcs) {
+        const at = npcHere(n);
+        if (at) consider(at.x, at.y, 1.7, { type: "npc", id: n.id, label: `Talk to ${n.id}${at.doing ? ` (${at.doing})` : ""}` });
+      }
+      return best;
+    };
+
+    const frame = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+      setTilt(TILT_STREET);
+      step(dt);
+      const nn = findNear();
+      if (JSON.stringify(nn) !== JSON.stringify(nearRef.current)) {
+        nearRef.current = nn;
+        setNear(nn);
+      }
+
+      const dpr = Math.min(1.5, window.devicePixelRatio || 1);
+      const W = wrap.clientWidth;
+      const H = wrap.clientHeight;
+      if (cv.width !== Math.round(W * dpr) || cv.height !== Math.round(H * dpr)) {
+        cv.width = Math.round(W * dpr);
+        cv.height = Math.round(H * dpr);
+      }
+      const ppm = Math.max(20, Math.min(36, W / 22));
+      const key = `${ppm.toFixed(2)}|${dpr}`;
+      if (!cache || cache.key !== key) cache = { key, ...buildCache(ppm * dpr) };
+
+      // camera follows the player, clamped to the scene
+      const viewW = W / ppm;
+      const viewH = H / ppm;
+      const camX = Math.max(viewW / 2, Math.min(scene.w - viewW / 2, pos.current.x));
+      const camSY = Math.max(viewH / 2 - 1.5, Math.min(scene.h * G - viewH / 2, pos.current.y * G - 0.8));
+
+      const ctx = cv.getContext("2d")!;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.fillStyle = "#7a4029";
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.translate(W / 2, H / 2);
+      ctx.scale(ppm, ppm);
+      ctx.translate(-camX, -camSY);
+      const blit = (s: Sprite) => ctx.drawImage(s.canvas, s.x0, s.y0, s.w, s.h);
+      blit(cache.ground);
+
+      // depth-sorted world: cached statics + live things
+      type Item = { y: number; draw: () => void };
+      const items: Item[] = cache.statics.map((s) => ({ y: s.sortY, draw: () => blit(s) }));
+      const t = now / 1000;
+      for (const p of scene.props) {
+        if (!ANIMATED.has(p.spec.kind)) continue;
+        items.push({ y: p.y, draw: () => { ctx.save(); ctx.translate(p.x, p.y * G); drawProp(ctx, p.spec, p.seed ?? 1, t); ctx.restore(); } });
+      }
+      for (const n of scene.npcs) {
+        const at = npcHere(n);
+        const spec = CAST[n.cast];
+        if (!at || !spec) continue;
+        items.push({ y: at.y, draw: () => { ctx.save(); ctx.translate(at.x, at.y * G); drawPerson(ctx, spec, at.dir, "stand", 0); ctx.restore(); } });
+      }
+      const me = pos.current;
+      items.push({
+        y: me.y,
+        draw: () => {
+          ctx.save();
+          ctx.translate(me.x, me.y * G);
+          // a soft ring so you can always find yourself
+          ctx.beginPath();
+          ctx.ellipse(0, 0, 0.42, 0.42 * G, 0, 0, Math.PI * 2);
+          ctx.strokeStyle = "rgba(245,197,24,0.9)";
+          ctx.lineWidth = 0.05;
+          ctx.stroke();
+          drawPerson(ctx, playerRef.current, facing.current, moving.current ? "walk" : "stand", phase.current);
+          ctx.restore();
+        },
+      });
+      items.sort((a, b) => a.y - b.y);
+      for (const it of items) it.draw();
+
+      // name tags over people
+      ctx.font = "800 0.32px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      for (const n of scene.npcs) {
+        const at = npcHere(n);
+        if (!at) continue;
+        const y = at.y * G - 2.2;
+        ctx.lineWidth = 0.08;
+        ctx.strokeStyle = "rgba(28,25,23,0.75)";
+        ctx.strokeText(n.id, at.x, y);
+        ctx.fillStyle = "#fff6e3";
+        ctx.fillText(n.id, at.x, y);
+      }
+      // where you can go
+      for (const e of scene.exits) {
+        ctx.fillStyle = "rgba(245,197,24,0.85)";
+        ctx.beginPath();
+        ctx.ellipse(e.x, e.y * G, 0.5, 0.5 * G, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      // light by time of day
+      const m = minuteRef.current;
+      const h = m / 60;
+      let tint: string | null = null;
+      if (h >= 5 && h < 7) tint = "rgba(255,190,140,0.12)";
+      else if (h >= 17 && h < 19) tint = "rgba(255,140,60,0.14)";
+      else if (h >= 19 && h < 21) tint = "rgba(55,40,90,0.3)";
+      else if (h >= 21 || h < 5) tint = "rgba(10,18,45,0.5)";
+      if (tint) {
+        ctx.fillStyle = tint;
+        ctx.fillRect(0, 0, W, H);
+      }
+      raf = requestAnimationFrame(frame);
+    };
+    raf = requestAnimationFrame(frame);
+
+    // input
+    const toWorld = (e: PointerEvent) => {
+      const r = cv.getBoundingClientRect();
+      const W = r.width, H = r.height;
+      const ppm = Math.max(20, Math.min(36, W / 22));
+      const viewW = W / ppm, viewH = H / ppm;
+      const camX = Math.max(viewW / 2, Math.min(scene.w - viewW / 2, pos.current.x));
+      const camSY = Math.max(viewH / 2 - 1.5, Math.min(scene.h * G - viewH / 2, pos.current.y * G - 0.8));
+      return { x: camX + (e.clientX - r.left - W / 2) / ppm, y: (camSY + (e.clientY - r.top - H / 2) / ppm) / G };
+    };
+    const down = (e: PointerEvent) => {
+      const w = toWorld(e);
+      // tapping close to a spot walks you right onto it
+      const spots = [...scene.doors, ...scene.exits];
+      const hit = spots.find((s) => Math.hypot(s.x - w.x, s.y - w.y) < 1.2);
+      target.current = hit ? { x: hit.x, y: hit.y + 0.2 } : w;
+    };
+    const kd = (e: KeyboardEvent) => {
+      const el = document.activeElement;
+      if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
+      if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "w", "a", "s", "d"].includes(e.key)) {
+        keys.current.add(e.key);
+        if (e.key.startsWith("Arrow")) e.preventDefault();
+      }
+    };
+    const ku = (e: KeyboardEvent) => keys.current.delete(e.key);
+    cv.addEventListener("pointerdown", down);
+    window.addEventListener("keydown", kd);
+    window.addEventListener("keyup", ku);
+
+    // dev/test hook: read and set the player's position
+    if (process.env.NODE_ENV !== "production") {
+      (window as unknown as { __omoScene: unknown }).__omoScene = {
+        pos: () => ({ ...pos.current }),
+        moveTo: (x: number, y: number) => { pos.current = { x, y }; target.current = null; },
+      };
+    }
+    return () => {
+      cancelAnimationFrame(raf);
+      cv.removeEventListener("pointerdown", down);
+      window.removeEventListener("keydown", kd);
+      window.removeEventListener("keyup", ku);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene, blockers]);
+
+  const act = () => {
+    const n = nearRef.current;
+    if (!n) return;
+    if (n.type === "door") onDoor(n.id);
+    else if (n.type === "exit") onExit(n.to);
+    else {
+      const npc = scene.npcs.find((x) => x.id === n.id);
+      if (!npc) return;
+      const part = partOfDay(minuteRef.current);
+      const lines = npc.lines[part] ?? npc.lines.any ?? ["…"];
+      onTalk(npc.id, lines[(npcMeets[npc.id] ?? 0) % lines.length]);
+    }
+  };
+
+  const away = scene.npcs.filter((n) => !n.at[partOfDay(minute)] && n.awayNote).map((n) => n.awayNote);
+
+  return (
+    <div>
+      <div ref={wrapRef} className="relative h-[440px] overflow-hidden rounded-2xl ring-1 ring-white/10 sm:h-[500px]">
+        <canvas ref={cvRef} className="block h-full w-full touch-none" role="img" aria-label={`${scene.name}, walkable street`} />
+        {near && (
+          <button
+            onClick={act}
+            className="absolute bottom-3 left-1/2 -translate-x-1/2 rounded-full bg-mapo px-5 py-2.5 text-sm font-extrabold text-charcoal shadow-lg ring-2 ring-charcoal/20"
+          >
+            {near.type === "exit" ? "🚶 " : near.type === "npc" ? "💬 " : "🚪 "}
+            {near.label}
+          </button>
+        )}
+      </div>
+      <p className="mt-2 text-[11px] text-cream/60">
+        Tap to walk (or WASD / arrows). Stand by a door, gate or person to act.{away.length ? ` ${away.join(" ")}` : ""}
+      </p>
+    </div>
+  );
+}
