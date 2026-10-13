@@ -76,12 +76,11 @@ import { hasScene, sceneFor } from "@/lib/districts";
 import RoomCard from "@/components/RoomCard";
 import type { SceneTeleport as Teleport } from "@/components/DistrictScene";
 import HomeTab from "@/components/HomeTab";
-import CompoundCard from "@/components/CompoundCard";
-import StreetCard from "@/components/StreetCard";
+
 import StoreModal from "@/components/StoreModal";
 import DoorModal from "@/components/DoorModal";
 import ShopEntryModal from "@/components/ShopEntryModal";
-import type { ShopKind } from "@/components/StoreInterior3D";
+import type { ShopKind } from "@/lib/art/interiors";
 import {
   SKINS,
   CLOTHS,
@@ -1907,7 +1906,8 @@ export default function Home() {
                 <p className="mb-3 text-xs text-charcoal/55">Every purchase appears here. Bare floor today, showroom tomorrow.</p>
                 <RoomCard
                   home={home}
-                  avatarColor={topColor}
+                  player={playerSpec({ gender, skin: look.skin, top: topColor, gear })}
+                  night={partOfDay(minute) === "night"}
                   onSleep={() => {
                     const bonus = 40 + home.furniture.reduce((s, id) => s + (FURNITURE.find((f) => f.id === id)?.rest ?? 0), 0);
                     sleep(bonus);
@@ -1918,29 +1918,47 @@ export default function Home() {
             {ileView === "compound" && (
               <div className="rounded-3xl bg-white p-4 ring-1 ring-roof/10 sm:p-5">
                 <h3 className="font-display text-base font-extrabold tracking-tight">🏘️ Your compound</h3>
-                <p className="mb-3 text-xs text-charcoal/55">Walk it in 3D or survey it in 2D — same elders, same chickens.</p>
-                <CompoundCard
-                  compound={bg.compound}
-                  greeted={lastGreetDay === day}
-                  onGreet={() => {
+                <p className="mb-3 text-xs text-charcoal/55">{bg.homeLabel}. Same yard, same people as on the map.</p>
+                {streetSceneFor(bg.homeZone) && (
+                  <StreetScene
+                    scene={streetSceneFor(bg.homeZone)!}
+                    minute={minute}
+                    player={playerSpec({ gender, skin: look.skin, top: topColor, gear })}
+                    entry={sceneEntry}
+                    npcMeets={Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets]))}
+                    onDoor={sceneDoor}
+                    onExit={sceneExit}
+                    onTalk={sceneTalk}
+                  />
+                )}
+                <button
+                  onClick={() => {
                     if (lastGreetDay === day) return;
                     setLastGreetDay(day);
                     setIwa((v) => Math.min(100, v + 2));
                     meet("Elder");
                     setNeeds((n) => ({ ...n, social: Math.min(100, n.social + 8) }));
-                    push(`🙏 You dobale for the elder. "${address(gender, "elder")}" Iwa +2.`);
+                    push(`🙏 You ${gender === "okunrin" ? "dobale" : "kunle"} for the elder. "${address(gender, "elder")}" Iwa +2.`);
                   }}
-                />
+                  disabled={lastGreetDay === day}
+                  className="mt-2 w-full rounded-full bg-charcoal py-2.5 text-sm font-bold text-cream disabled:opacity-40"
+                >
+                  {lastGreetDay === day ? "✅ Elder greeted today. Ẹ ṣeun, ọmọ mi." : `🙏 ${gender === "okunrin" ? "Dobale" : "Kunle"}: greet the elder (+2 Iwa, once daily)`}
+                </button>
               </div>
             )}
             {ileView === "street" && (
               <div className="rounded-3xl bg-white p-4 ring-1 ring-roof/10 sm:p-5">
                 <h3 className="font-display text-base font-extrabold tracking-tight">🛣️ Your street</h3>
-                <p className="mb-3 text-xs text-charcoal/55">Between compound and city: stall, kiosk, barber, match-day viewing centre.</p>
-                <StreetCard
-                  onStepOut={() => { goHome(); setTab("map"); }}
-                  onEnterShop={(s) => setShopEntry(s)}
-                />
+                <p className="mb-3 text-xs text-charcoal/55">The shops on your street. Step inside any of them.</p>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {([["food", "🍲 Mama Put's buka"], ["provisions", "🧃 Provisions shop"], ["barber", "💈 Barber"], ["viewing", "📺 Viewing centre"], ["boutique", "👗 Boutique"]] as [ShopKind, string][]).map(([k, label]) => (
+                    <button key={k} onClick={() => setShopEntry(k)} className="rounded-2xl bg-cream px-3 py-3 text-left text-sm font-bold ring-1 ring-roof/15 hover:bg-mapo/20">
+                      {label} →
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => { goHome(); setTab("map"); }} className="mt-2 w-full rounded-full bg-charcoal py-2.5 text-sm font-bold text-cream">🚶 Step out to your street</button>
               </div>
             )}
             <HomeTab

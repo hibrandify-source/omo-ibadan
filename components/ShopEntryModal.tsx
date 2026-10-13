@@ -1,17 +1,16 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import type { ShopKind } from "./StoreInterior3D";
+import InteriorView from "./InteriorView";
+import type { ShopKind } from "@/lib/art/interiors";
 import { PRICES, naira } from "@/lib/game";
 
-const StoreInterior3D = dynamic(() => import("./StoreInterior3D"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-64 items-center justify-center rounded-2xl bg-black text-sm text-cream/70">
-      Opening shop…
-    </div>
-  ),
-});
+const SHOP_NAMES: Record<ShopKind, string> = {
+  food: "Mama Put's buka",
+  provisions: "Provisions shop",
+  barber: "Barber's shop",
+  viewing: "Viewing centre",
+  boutique: "Boutique",
+};
 
 const PROVISIONS = [
   { id: "water", name: "Pure water + Gala", cost: PRICES.food.pureWaterGala, gain: 8, blurb: "Hold body till real food." },
@@ -43,7 +42,7 @@ export default function ShopEntryModal({
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-charcoal/70 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="max-h-[92dvh] w-full max-w-sm overflow-y-auto rounded-3xl bg-cream p-4 shadow-2xl ring-1 ring-roof/20" onClick={(e) => e.stopPropagation()}>
-        <StoreInterior3D shop={shop} saver={false} />
+        <InteriorView shop={shop} label={SHOP_NAMES[shop]} />
         {(shop === "food" || shop === "provisions") && (
           <div className="mt-3 grid gap-2">
             {(shop === "food"
