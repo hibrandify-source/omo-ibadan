@@ -15,7 +15,6 @@ interface OmoState {
   day: number;
   minute: number;
   avatarZone: string;
-  nearDoor: string | null;
   doorOpen: string | null;
   feed: string[];
   journal: number;
@@ -24,9 +23,6 @@ interface OmoState {
 
 const state = (page: Page): Promise<OmoState> =>
   page.evaluate(() => (window as unknown as { __omo: { state: () => OmoState } }).__omo.state());
-
-const teleport = (page: Page, x: number, y: number) =>
-  page.evaluate(([px, py]) => (window as unknown as { __omo: { teleport: (x: number, y: number) => void } }).__omo.teleport(px, py), [x, y] as [number, number]);
 
 /** Put the player at a spot in the current walkable scene (world metres). */
 const sceneMoveTo = (page: Page, x: number, y: number) =>

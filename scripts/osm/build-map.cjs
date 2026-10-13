@@ -79,7 +79,7 @@ const D = [
     const g = r.geometry;
     return { lat: g.reduce((s, p) => s + p.lat, 0) / g.length, lon: g.reduce((s, p) => s + p.lon, 0) / g.length, src: "osm: Beere Roundabout" };
   }],
-  ["oje", "Oje Market", () => ({ lat: 7.3885, lon: 3.9075, src: "UNVERIFIED: no OSM data for Oje; placed east of Beere, confirm locally" })],
+  ["oje", "Oje Market", () => ({ lat: 7.3885, lon: 3.9075, src: "local: no OSM data for Oje; placed east of Beere, confirmed by a local player" })],
   ["molete", "Molete", () => ({ ...cluster(/molete/i), src: "osm: Molete-named features" })],
   ["challenge", "Challenge", () => ({ ...roadEnd("Challenge Road", "north"), src: "osm: north end of Challenge Road (Ring Road junction)" })],
   ["ring-road", "Ring Road / Palms", () => ({ ...landmark("Palms Shopping Mall"), src: "osm: Palms Shopping Mall" })],

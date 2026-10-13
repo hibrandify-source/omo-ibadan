@@ -1,5 +1,4 @@
-// Walkable code-drawn scenes by district id. Districts without one still use
-// the painted DistrictScene (or a placeholder) until theirs is built.
+// Walkable code-drawn scenes, one per district on the map.
 
 import { BEERE } from "./beere";
 import { BODIJA } from "./bodija";

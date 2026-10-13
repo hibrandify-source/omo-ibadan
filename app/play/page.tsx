@@ -95,10 +95,7 @@ import CityMap from "@/components/CityMap";
 import StreetScene from "@/components/StreetScene";
 import { streetSceneFor } from "@/lib/scenes";
 import { playerSpec } from "@/lib/art/player";
-import DistrictScene from "@/components/DistrictScene";
-import { hasScene, sceneFor } from "@/lib/districts";
 import RoomCard from "@/components/RoomCard";
-import type { SceneTeleport as Teleport } from "@/components/DistrictScene";
 import HomeTab from "@/components/HomeTab";
 
 import StoreModal from "@/components/StoreModal";
@@ -247,10 +244,9 @@ export default function Home() {
   const [hoods, setHoods] = useState<Record<HoodId, number>>(startHoods);
   const [myHood, setMyHood] = useState<HoodId>("bodija");
   const [event, setEvent] = useState<LifeEvent | null>(null);
-  // Milestone 3: avatar zone, home, teleport
+  // where you are and your home
   const [avatarZone, setAvatarZone] = useState("ui-gate");
   const [home, setHome] = useState<HomeSave>(emptyHome);
-  const [teleport, setTeleport] = useState<Teleport | null>(null);
   // where the player appears in a walkable scene: their door, or the gate when arriving
   const [sceneEntry, setSceneEntry] = useState<{ key: number; at: "spawn" | "arrive" }>({ key: 0, at: "spawn" });
   // 4A shell: quality + settings menu
@@ -337,7 +333,6 @@ export default function Home() {
   const [shopGreetDay, setShopGreetDay] = useState(0);
   const [shopEntry, setShopEntry] = useState<ShopKind | null>(null);
   // in-world doors + NPC memory + journal
-  const [nearDoor, setNearDoor] = useState<Door | null>(null);
   const [doorOpen, setDoorOpen] = useState<Door | null>(null);
   const [npc, setNpc] = useState<Record<string, { meets: number }>>({});
   const [journal, setJournal] = useState<{ day: number; text: string }[]>([]);
@@ -358,14 +353,6 @@ export default function Home() {
   const jot = (text: string) =>
     setJournal((j) => [...j.slice(-49), { day, text }]);
 
-  const greetNpc = (id: string) => {
-    const p = NPCS.find((x) => x.id === id);
-    if (!p) return;
-    meet(id);
-    setNeeds((n) => ({ ...n, social: Math.min(100, n.social + 8) }));
-    push(`👋 ${id}: ${p.lines[npcTier(id)]}`);
-    spendMinutes(MINUTES.greet);
-  };
   const [shopGreets, setShopGreets] = useState<Record<string, number>>({});
   const [viewDay, setViewDay] = useState(0);
   // 4F: ile sub-view + daily elder greeting
@@ -499,9 +486,8 @@ export default function Home() {
   useEffect(() => {
     if (process.env.NODE_ENV === "production") return;
     (window as unknown as { __omo: unknown }).__omo = {
-      teleport: (x: number, y: number) => setTeleport((t) => ({ x, y, key: (t?.key ?? 0) + 1 })),
       goto: (zoneId: string) => { setNode(zoneId); setAvatarZone(zoneId); recordVisit(zoneId); },
-      state: () => ({ started, tab, bg: bgId, bond, ola, iwa, energy, day, minute, avatarZone, nearDoor: nearDoor?.id ?? null, doorOpen: doorOpen?.id ?? null, feed: feed.slice(0, 3), journal: journal.length, npc: Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets])) }),
+      state: () => ({ started, tab, bg: bgId, bond, ola, iwa, energy, day, minute, avatarZone, doorOpen: doorOpen?.id ?? null, feed: feed.slice(0, 3), journal: journal.length, npc: Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets])) }),
     };
   });
 
@@ -1289,9 +1275,6 @@ export default function Home() {
 
   const teleportTo = (id: string, at: "spawn" | "arrive" = "arrive") => {
     if (streetSceneFor(id)) setSceneEntry((e) => ({ key: e.key + 1, at }));
-    const s = sceneFor(id);
-    if (!s) return;
-    setTeleport((t) => ({ x: s.spawn.x, y: s.spawn.y, key: (t?.key ?? 0) + 1 }));
   };
 
   // ---- jobs ladder (skills + careers, adapted to our day cycle) ----
@@ -1809,13 +1792,8 @@ export default function Home() {
           </div>
         )}
 
-        {/* Door chip (walked up to a door) wins over the zone chip */}
-        {nearDoor ? (
-          <button onClick={() => setDoorOpen(nearDoor)} className="mt-3 flex w-full items-center justify-between rounded-2xl bg-gradient-to-r from-mapo to-[#f5c04a] px-4 py-2.5 text-left text-sm font-extrabold text-charcoal shadow ring-2 ring-cream/40">
-            <span>🚪 {nearDoor.label} — step inside, no tabs</span>
-            <span>→</span>
-          </button>
-        ) : (
+        {/* Zone chip: a shortcut to what this district is for */}
+        {(
           (() => {
             const enter = ENTER_MAP[avatarZone];
             if (!enter) return null;
@@ -2014,19 +1992,6 @@ export default function Home() {
                     onExit={sceneExit}
                     onTalk={sceneTalk}
                   />
-                ) : hasScene(avatarZone) ? (
-                  <DistrictScene
-                    zone={avatarZone}
-                    playerName={username}
-                    playerColor={topColor}
-                    teleport={teleport}
-                    weather={weather}
-                    saver={saver}
-                    npcMeets={Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets]))}
-                    onGate={(id) => travelTo(id)}
-                    onDoor={(d) => setNearDoor(d)}
-                    onGreetNpc={greetNpc}
-                  />
                 ) : (
                   <div className="rounded-2xl bg-white/[0.06] p-6 text-center text-sm text-cream/80 ring-1 ring-white/10">
                     You are in <b>{MAP_NODES.find((n) => n.id === avatarZone)?.name ?? avatarZone}</b>. Its street is being built; use the map below to move on.
@@ -2045,7 +2010,7 @@ export default function Home() {
                 </div>
                 <CityMap
                   current={node}
-                  playable={(id) => hasScene(id) || !!streetSceneFor(id)}
+                  playable={(id) => !!streetSceneFor(id)}
                   fareFor={(id) => {
                     const km = getDist(node, id);
                     if (km <= 2) return "short waka · free";
