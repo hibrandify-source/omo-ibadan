@@ -4,6 +4,7 @@
 // route boards, white interstate buses. Pay fare, ride out, return with
 // goods to offload. Costs energy (travel tires you).
 import { PRICES } from "@/lib/game";
+import { TERMINAL_ENERGY } from "@/lib/engine/day";
 
 const IP = PRICES.interstate;
 const ROUTES = [
@@ -16,19 +17,22 @@ export default function Terminal({
   ola,
   onTrip,
   fareMult,
+  blocked,
 }: {
   ola: number;
   onTrip: (cost: number, gain: number, msg: string) => void;
   fareMult?: number;
+  /** why a run can't start right now, or null */
+  blocked?: string | null;
 }) {
   const fare = (r: (typeof ROUTES)[number]) => Math.round(r.fare * (fareMult ?? 1));
   const ride = (r: (typeof ROUTES)[number]) => {
-    if (ola < fare(r)) return;
+    if (blocked || ola < fare(r)) return;
     const gain = r.lo + Math.floor(Math.random() * (r.hi - r.lo));
     onTrip(
       fare(r),
       gain,
-      `🚌 White bus to ${r.city} and back (−₦${fare(r).toLocaleString()}, −15⚡). Offloaded goods for +₦${gain.toLocaleString()}.`
+      `🚌 White bus to ${r.city} and back (−₦${fare(r).toLocaleString()}, −${TERMINAL_ENERGY}⚡). Offloaded goods for +₦${gain.toLocaleString()}.`
     );
   };
   return (
@@ -57,7 +61,8 @@ export default function Terminal({
         ))}
       </svg>
       <h3 className="font-display mt-2 text-base font-extrabold tracking-tight">🚌 Iwo Park Terminal — interstate runs</h3>
-      <p className="text-xs text-charcoal/55">White buses, route boards, Lagos traffic. Each run costs 15⚡ — travel tires you.</p>
+      <p className="text-xs text-charcoal/55">White buses, route boards, Lagos traffic. One run a day, {TERMINAL_ENERGY}⚡ each, and it takes half your day.</p>
+      {blocked && <p className="mt-2 rounded-xl bg-cream px-3 py-2 text-xs font-semibold text-roof">{blocked}</p>}
       <div className="mt-3 grid gap-2">
         {ROUTES.map((r) => (
           <div key={r.id} className="flex items-center justify-between gap-2 rounded-2xl bg-cream px-3.5 py-2.5 ring-1 ring-roof/10">
@@ -68,7 +73,7 @@ export default function Terminal({
             </div>
             <button
               onClick={() => ride(r)}
-              disabled={ola < fare(r)}
+              disabled={!!blocked || ola < fare(r)}
               className="shrink-0 rounded-full bg-charcoal px-4 py-2 text-xs font-bold text-cream disabled:opacity-35"
             >
               Board →

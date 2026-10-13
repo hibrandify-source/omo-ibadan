@@ -28,17 +28,25 @@ export function emptySkills(): SkillMap {
   return m;
 }
 
+export const MAX_SKILL_LEVEL = 10;
+
+/** XP needed to go from `level` to `level + 1`. */
+export function xpToNext(id: SkillId, level: number): number {
+  const def = SKILLS.find((s) => s.id === id)!;
+  return def.xpPerLevel * (level + 1);
+}
+
 export function grantXp(skills: SkillMap, id: SkillId, xp: number): { skills: SkillMap; leveled: boolean } {
   const cur = skills[id];
-  const def = SKILLS.find((s) => s.id === id)!;
+  if (cur.level >= MAX_SKILL_LEVEL) return { skills, leveled: false };
   let total = cur.xp + xp;
   let level = cur.level;
   let leveled = false;
-  while (total >= def.xpPerLevel * (level + 1)) {
-    total -= def.xpPerLevel * (level + 1);
+  while (level < MAX_SKILL_LEVEL && total >= xpToNext(id, level)) {
+    total -= xpToNext(id, level);
     level += 1;
     leveled = true;
-    if (level >= 10) break;
   }
+  if (level >= MAX_SKILL_LEVEL) total = 0;
   return { skills: { ...skills, [id]: { xp: total, level } }, leveled };
 }

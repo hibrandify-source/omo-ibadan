@@ -220,6 +220,22 @@ test.describe("Omo Ibadan E2E", () => {
     await expect(page.getByRole("button", { name: /Draw my life/ })).toHaveCount(0);
   });
 
+  test("progress survives a reload (single save format)", async ({ page }) => {
+    await startGame(page, "SaveCheck");
+    await page.getByRole("button", { name: /Help Mama at the stall/ }).click();
+    await page.getByRole("button", { name: "🚐 Hustle" }).click();
+    await page.getByRole("button", { name: /Buy Oja Oba/ }).click();
+    const before = await state(page);
+    await page.reload();
+    await expect(page.getByText("@SaveCheck", { exact: false }).first()).toBeVisible();
+    const after = await state(page);
+    expect(after.started).toBe(true);
+    expect(after.ola).toBe(before.ola);
+    expect(after.bond).toBe(before.bond);
+    expect(after.bg).toBe(before.bg);
+    expect(after.journal).toBe(before.journal);
+  });
+
   test("no uncaught errors from load through first hustle", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (e) => pageErrors.push(e.message));

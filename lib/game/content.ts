@@ -162,7 +162,7 @@ export const MISSIONS: Mission[] = [
   { id: "m5", chapter: "2 · Hustle", title: "Pass 3 exams", desc: "Answer 3 UI Exam questions correctly.", check: "examPass>=3", rewardOla: 3000, rewardIwa: 5 },
   { id: "m6", chapter: "3 · Ordeal", title: "Survive NEPA week", desc: "Reach Day 4 (keep chopping + hustling).", check: "day>=4", rewardOla: 3000, rewardIwa: 5 },
   { id: "m7", chapter: "3 · Ordeal", title: "Family meeting", desc: "Choose the Omoluabi path in a Sunday event.", check: "family>=1", rewardOla: 0, rewardIwa: 10 },
-  { id: "m8", chapter: "4 · Title", title: "Mogaji nomination", desc: "Reach ₦300,000 Ola AND 60 Iwa.", check: "mogaji", rewardOla: 5000, rewardIwa: 5 },
+  { id: "m8", chapter: "4 · Title", title: "Mogaji nomination", desc: "Reach ₦1,000,000 Ola AND 65 Iwa.", check: "mogaji", rewardOla: 5000, rewardIwa: 5 },
 ];
 
 // ---- Life events ----

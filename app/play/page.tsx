@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ECONOMY,
-  EXAM_POOL,
   HOODS,
   LIFE_EVENTS,
   MAP_NODES,
@@ -11,7 +10,6 @@ import {
   DISTRICT_DEEDS,
   DAILY_HUNTS,
   GENDERS,
-  TITLE_LADDER,
   address,
   makeReferralCode,
   type Gender,
@@ -23,6 +21,7 @@ import {
   SKILLS,
   emptySkills,
   grantXp,
+  xpToNext,
   type SkillId,
   type SkillMap,
   CAREERS,
@@ -34,14 +33,29 @@ import {
   BACKGROUNDS,
   drawBackground,
   isBackgroundId,
-  backgroundFromLegacyArchetype,
-  allowanceDue,
-  upkeepFor,
-  upcomingObligations,
-  overdueObligations,
-  eventsFor,
   type BackgroundId,
 } from "@/lib/game";
+import {
+  SAVE_KEY,
+  SAVE_VERSION,
+  migrateSave,
+  rawFromCloudRow,
+  cloudRowFor,
+  chooseSave,
+  saveBody,
+  startHoods,
+  type SaveData,
+} from "@/lib/engine/save";
+import {
+  ACTIONS_PER_DAY,
+  EXAM_PAID_PER_DAY,
+  TERMINAL_ACTIONS,
+  TERMINAL_ENERGY,
+  advanceDay,
+  decayNeeds,
+  examQuestion,
+  titleFor,
+} from "@/lib/engine/day";
 import MapGraph from "@/components/MapGraph";
 import DistrictScene from "@/components/DistrictScene";
 import { sceneFor } from "@/lib/districts";
@@ -60,8 +74,6 @@ import {
   FURNITURE,
   NPCS,
   emptyHome,
-  zoneCenter,
-  ZONES,
   type HomeSave,
   type Door,
 } from "@/lib/world";
@@ -126,10 +138,6 @@ const ENTER_MAP: Record<string, { label: string; tab: Tab }> = {
   eleyele: { label: "Lakeside story", tab: "story" },
 };
 
-const startHoods = (): Record<HoodId, number> => ({
-  bodija: 1200, agbowo: 1500, challenge: 900, "iwo-road": 1800, ojoo: 600, beere: 1100,
-});
-
 export default function Home() {
   const [started, setStarted] = useState(false);
   const [username, setUsername] = useState("");
@@ -183,9 +191,15 @@ export default function Home() {
   // V1 rest-of-build: day cycle, stats, missions, hoods, events
   const [day, setDay] = useState(1);
   const [actions, setActions] = useState(0);
+  // mirrors `actions` so several earns in one tick still count separately
+  const actionsRef = useRef(0);
   const [micraRuns, setMicraRuns] = useState(0);
   const [trades, setTrades] = useState(0);
   const [examPass, setExamPass] = useState(0);
+  const [exam, setExam] = useState({ day: 0, paid: 0 });
+  const [lastTerminalDay, setLastTerminalDay] = useState(0);
+  // true once the local save has been read; nothing is written before that
+  const [hydrated, setHydrated] = useState(false);
   const [familyCount, setFamilyCount] = useState(0);
   const [rests, setRests] = useState(0);
   const [fullLoads, setFullLoads] = useState(0);
@@ -315,98 +329,93 @@ export default function Home() {
     moodScore >= 55 ? "🙂 Happy" :
     moodScore >= 35 ? "😐 Managing" :
     moodScore >= 15 ? "😩 Drained" : "🤢 Miserable";
-  const title = useMemo(() => {
-    const score = ola / 100000 + iwa / 40;
-    return TITLE_LADDER[Math.min(TITLE_LADDER.length - 1, Math.floor(score))];
-  }, [ola, iwa]);
+  const title = titleFor(ola, iwa);
   const nodeName = MAP_NODES.find((n) => n.id === node)?.name ?? node;
 
+  // ---- save: one format for local + cloud (lib/engine/save) ----
+  const applySave = (s: SaveData) => {
+    setStarted(s.started);
+    setUsername(s.username);
+    setMyCode(s.myCode);
+    setBgId(s.bgId);
+    setGender(s.gender);
+    setLook(s.look);
+    setTrait(s.trait);
+    setSaver(s.saver);
+    setOla(s.ola);
+    setIwa(s.iwa);
+    setEnergy(s.energy);
+    setNeeds(s.needs);
+    setBond(s.bond);
+    setPaidObligations(s.paidObligations);
+    setLastFamilyDay(s.lastFamilyDay);
+    setDay(s.day);
+    setActions(s.actions);
+    actionsRef.current = s.actions;
+    setWeather(s.weather);
+    setEvent(LIFE_EVENTS.find((e) => e.id === s.eventId) ?? null);
+    setMicraRuns(s.micraRuns);
+    setTrades(s.trades);
+    setExamPass(s.examPass);
+    setExam(s.exam);
+    setFamilyCount(s.familyCount);
+    setRests(s.rests);
+    setFullLoads(s.fullLoads);
+    setSprays(s.sprays);
+    setLastTerminalDay(s.lastTerminalDay);
+    setVisits(s.visits);
+    setDone(s.done);
+    setClaimedDaily(s.claimedDaily);
+    setHoods(s.hoods);
+    setMyHood(s.myHood);
+    setAvatarZone(s.avatarZone);
+    if (s.started) setNode(s.avatarZone);
+    setHome(s.home);
+    setTravelMode(s.travelMode);
+    setWardrobe(s.wardrobe);
+    setEquipped(s.equipped);
+    setNpc(s.npc);
+    setJournal(s.journal);
+    setShopGreets(s.shopGreets);
+    setViewDay(s.viewDay);
+    setLastGreetDay(s.lastGreetDay);
+    setLastFreshDay(s.lastFreshDay);
+    setLastToiletDay(s.lastToiletDay);
+    setSkills(s.skills);
+    setCareerId(s.careerId);
+    setCareerLevels(s.careerLevels);
+    setLastShiftDay(s.lastShiftDay);
+    setWalkWeek(s.walkWeek);
+    setWalkDay(s.walkDay);
+  };
+
+  const current: SaveData = {
+    v: SAVE_VERSION, savedAt: 0, started, username, myCode, bgId, gender, look, trait, saver,
+    ola, iwa, energy, needs, bond, paidObligations, lastFamilyDay,
+    day, actions, weather, eventId: event?.id ?? null,
+    micraRuns, trades, examPass, exam, familyCount, rests, fullLoads, sprays, lastTerminalDay,
+    visits, done, claimedDaily, hoods, myHood,
+    avatarZone, home, travelMode, wardrobe, equipped,
+    npc, journal, shopGreets, viewDay, lastGreetDay, lastFreshDay, lastToiletDay,
+    skills, careerId, careerLevels, lastShiftDay, walkWeek, walkDay,
+  };
+  // stable string of the save; changes exactly when progress changes
+  const body = saveBody(migrateSave(current)!);
+  const lastBodyRef = useRef("");
+  const savedAtRef = useRef(0);
+  const latest = useRef<SaveData>(current);
+  latest.current = current;
+  const latestSave = (): SaveData => ({ ...latest.current, savedAt: savedAtRef.current });
+
   useEffect(() => {
-    const saved = localStorage.getItem("omo-ibadan-v1");
-    if (saved) {
-      try {
-        const s = JSON.parse(saved);
-        setStarted(s.started ?? false);
-        setUsername(s.username ?? "");
-        // v2 saves carry a background; older saves get one from their archetype
-        // and have their wallet scaled to the recalibrated prices (×10).
-        const legacy = s.v !== 2;
-        if (legacy) setBgId(s.started ? backgroundFromLegacyArchetype(s.archId) : null);
-        else setBgId(isBackgroundId(s.bgId) ? s.bgId : null);
-        if (typeof s.bond === "number") setBond(s.bond);
-        if (Array.isArray(s.paidObligations)) setPaidObligations(s.paidObligations);
-        if (typeof s.lastFamilyDay === "number") setLastFamilyDay(s.lastFamilyDay);
-        if (s.gender) setGender(s.gender);
-        if (s.look) setLook({ skin: s.look.skin ?? 1, top: s.look.top ?? 1, topEx: s.look.topEx ?? null, gear: s.look.gear ?? null });
-        if (Array.isArray(s.wardrobe)) setWardrobe(s.wardrobe);
-        if (typeof s.equipped === "string" || s.equipped === null) setEquipped(s.equipped ?? null);
-        if (typeof s.sprays === "number") setSprays(s.sprays);
-        if (s.claimedDaily) setClaimedDaily(s.claimedDaily);
-        if (s.shopGreets) setShopGreets(s.shopGreets);
-        if (s.walkWeek && typeof s.walkWeek === "object") {
-          const w = s.walkWeek;
-          setWalkWeek({ key: typeof w.key === "string" ? w.key : "", steps: typeof w.steps === "number" ? w.steps : 0 });
-        }
-        if (s.walkDay && typeof s.walkDay === "object") {
-          const w = s.walkDay;
-          setWalkDay({ date: typeof w.date === "string" ? w.date : "", steps: typeof w.steps === "number" ? w.steps : 0 });
-        }
-        if (typeof s.viewDay === "number") setViewDay(s.viewDay);
-        setMyCode(s.myCode ?? "");
-        setOla(legacy && s.started ? (s.ola ?? 0) * 10 : s.ola ?? 0);
-        setIwa(s.iwa ?? 50);
-        setEnergy(s.energy ?? 80);
-        if (s.needs && typeof s.needs === "object") {
-          const n = s.needs as Record<string, number>;
-          setNeeds({
-            hunger: typeof n.hunger === "number" ? n.hunger : 80,
-            fun: typeof n.fun === "number" ? n.fun : 70,
-            social: typeof n.social === "number" ? n.social : 70,
-            hygiene: typeof n.hygiene === "number" ? n.hygiene : 75,
-            toilet: typeof n.toilet === "number" ? n.toilet : 85,
-          });
-        }
-        if (typeof s.trait === "string" || s.trait === null) setTrait((s.trait as string | null) ?? null);
-        if (typeof s.lastFreshDay === "number") setLastFreshDay(s.lastFreshDay);
-        if (typeof s.lastToiletDay === "number") setLastToiletDay(s.lastToiletDay);
-        if (s.npc && typeof s.npc === "object") setNpc(s.npc as Record<string, { meets: number }>);
-        if (Array.isArray(s.journal)) setJournal((s.journal as { day: number; text: string }[]).filter((j) => j && typeof j.text === "string").slice(-50));
-        if (s.walkWeek && typeof s.walkWeek === "object") {
-          const w = s.walkWeek as { key?: string; steps?: number };
-          setWalkWeek({ key: typeof w.key === "string" ? w.key : "", steps: typeof w.steps === "number" ? w.steps : 0 });
-        }
-        if (s.walkDay && typeof s.walkDay === "object") {
-          const w = s.walkDay as { date?: string; steps?: number };
-          setWalkDay({ date: typeof w.date === "string" ? w.date : "", steps: typeof w.steps === "number" ? w.steps : 0 });
-        }
-        setDay(s.day ?? 1);
-        setMicraRuns(s.micraRuns ?? 0);
-        setTrades(s.trades ?? 0);
-        setExamPass(s.examPass ?? 0);
-        setFamilyCount(s.familyCount ?? 0);
-        setRests(s.rests ?? 0);
-        setFullLoads(s.fullLoads ?? 0);
-        if (Array.isArray(s.visits)) setVisits(s.visits);
-        setDone(s.done ?? ["m1"]);
-        if (s.hoods) setHoods(s.hoods);
-        if (s.myHood) setMyHood(s.myHood);
-        if (s.home) setHome(s.home);
-        if (s.avatarZone) setAvatarZone(s.avatarZone);
-        if (typeof s.saver === "boolean") setSaver(s.saver);
-        if (typeof s.lastGreetDay === "number") setLastGreetDay(s.lastGreetDay);
-        if (s.skills && typeof s.skills === "object") {
-          const merged = emptySkills();
-          for (const sk of SKILLS) {
-            const v = (s.skills as Record<string, unknown>)[sk.id] as { xp?: number; level?: number } | undefined;
-            if (v && typeof v.xp === "number" && typeof v.level === "number") merged[sk.id] = { xp: v.xp, level: v.level };
-          }
-          setSkills(merged);
-        }
-        if (typeof s.careerId === "string" || s.careerId === null) setCareerId((s.careerId as string | null) ?? null);
-        if (s.careerLevels && typeof s.careerLevels === "object") setCareerLevels(s.careerLevels as Record<string, number>);
-        if (typeof s.lastShiftDay === "number") setLastShiftDay(s.lastShiftDay);
-        if (s.travelMode === "micra" || s.travelMode === "trek" || s.travelMode === "car") setTravelMode(s.travelMode);
-      } catch {}
+    let local: SaveData | null = null;
+    try {
+      local = migrateSave(JSON.parse(localStorage.getItem(SAVE_KEY) ?? "null"));
+    } catch {}
+    if (local) {
+      applySave(local);
+      savedAtRef.current = local.savedAt;
+      lastBodyRef.current = saveBody(local);
     }
     const params = new URLSearchParams(window.location.search);
     const r = params.get("ref");
@@ -414,22 +423,22 @@ export default function Home() {
     // Dev/test only: ?birth=alowonle forces the lottery result.
     const forced = params.get("birth");
     if (process.env.NODE_ENV !== "production" && isBackgroundId(forced)) setForcedBirth(forced);
+    setHydrated(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // write locally on every change; savedAt moves only when progress really changed
   useEffect(() => {
-    if (!started && !username) {
-      // Never clobber a started save with fresh defaults: on mount the load
-      // effect above restores state async, and StrictMode double-mounts in dev.
-      try {
-        const existing = localStorage.getItem("omo-ibadan-v1");
-        if (existing && JSON.parse(existing).started) return;
-      } catch {}
+    if (!hydrated) return;
+    if (body !== lastBodyRef.current) {
+      lastBodyRef.current = body;
+      savedAtRef.current = Date.now();
     }
-    localStorage.setItem(
-      "omo-ibadan-v1",
-      JSON.stringify({ v: 2, started, username, myCode, ola, iwa, energy, day, micraRuns, trades, examPass, familyCount, rests, fullLoads, visits, done, hoods, myHood, home, avatarZone, bgId, bond, paidObligations, lastFamilyDay, gender, look, wardrobe, equipped, sprays, claimedDaily, shopGreets, viewDay, saver, lastGreetDay, needs, trait, lastFreshDay, lastToiletDay, npc, journal, walkWeek, walkDay, skills, careerId, careerLevels, lastShiftDay, travelMode })
-    );
-  }, [started, username, myCode, ola, iwa, energy, day, micraRuns, trades, examPass, familyCount, rests, fullLoads, visits, done, hoods, myHood, home, avatarZone, bgId, bond, paidObligations, lastFamilyDay, gender, look, wardrobe, equipped, sprays, claimedDaily, shopGreets, viewDay, saver, lastGreetDay, needs, trait, lastFreshDay, lastToiletDay, npc, journal, walkWeek, walkDay, skills, careerId, careerLevels, lastShiftDay, travelMode]);
+    try {
+      localStorage.setItem(SAVE_KEY, JSON.stringify(latestSave()));
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [body, hydrated]);
 
   const push = (m: string) => setFeed((f) => [m, ...f].slice(0, 8));
 
@@ -470,135 +479,68 @@ export default function Home() {
     };
   }, []);
 
-  // pull cloud profile on sign-in (cloud wins), else seed cloud from local
+  // on sign-in: the newer of local and cloud wins; the loser is overwritten
   useEffect(() => {
-    if (!backendOn()) return;
-    if (!authUser || !started) return;
+    if (!backendOn() || !authUser || !hydrated) return;
+    let dead = false;
     (async () => {
       const { getSupabase } = await import("@/lib/supabase");
       const sb = getSupabase();
-      if (!sb) return;
+      if (!sb || dead) return;
       const { data, error } = await sb.from("profiles").select("*").eq("id", authUser.id).maybeSingle();
-      if (error || !data) {
+      if (error || dead) return; // offline or denied: keep playing locally, try again next sign-in
+      const cloud = data ? migrateSave(rawFromCloudRow(data as Record<string, unknown>)) : null;
+      const local = latestSave();
+      if (cloud && chooseSave(local, cloud) === "cloud") {
+        applySave(cloud);
+        savedAtRef.current = cloud.savedAt;
+        lastBodyRef.current = saveBody(cloud);
+        lastPushed.current = saveBody(cloud);
+        push("☁️ Cloud save loaded — welcome back.");
+      } else if (local.started) {
         await pushCloud(true);
-        setCloudReady(true);
-        push("☁️ Cloud save started — progress go dey follow you.");
-        return;
+        push(cloud ? "☁️ This device had newer progress — cloud updated." : "☁️ Cloud save started — progress go dey follow you.");
       }
-      const w = (data.wallet ?? {}) as { ola?: number; iwa?: number; energy?: number };
-      const p = (data.progress ?? {}) as Record<string, unknown>;
-      const num = (v: unknown, d: number) => (typeof v === "number" ? v : d);
-      const str = (v: unknown, d: string) => (typeof v === "string" ? v : d);
-      setUsername(str(data.username, username));
-      // arch_id column now stores the background id (old rows: archetype id)
-      const cloudLegacy = p.v !== 2;
-      setBgId(isBackgroundId(data.arch_id) ? data.arch_id : backgroundFromLegacyArchetype(str(data.arch_id, "")));
-      if (typeof p.bond === "number") setBond(p.bond);
-      if (Array.isArray(p.paidObligations)) setPaidObligations(p.paidObligations as string[]);
-      if (typeof p.lastFamilyDay === "number") setLastFamilyDay(p.lastFamilyDay);
-      setGender((data.gender === "obinrin" ? "obinrin" : "okunrin") as Gender);
-      if (data.look && typeof data.look === "object") {
-        const l = data.look as { skin?: number; top?: number; topEx?: string | null; gear?: null | "fila" | "gele" | "none" | "braids" | "afro" };
-        setLook({ skin: l.skin ?? 1, top: l.top ?? 1, topEx: l.topEx ?? null, gear: l.gear ?? null });
-      }
-      setOla(cloudLegacy ? num(w.ola, 0) * 10 : num(w.ola, ola));
-      setIwa(num(w.iwa, iwa));
-      setEnergy(num(w.energy, energy));
-      if (typeof p.day === "number") setDay(p.day);
-      if (typeof p.micraRuns === "number") setMicraRuns(p.micraRuns);
-      if (typeof p.trades === "number") setTrades(p.trades);
-      if (typeof p.examPass === "number") setExamPass(p.examPass);
-      if (typeof p.familyCount === "number") setFamilyCount(p.familyCount);
-      if (typeof p.rests === "number") setRests(p.rests);
-      if (typeof p.fullLoads === "number") setFullLoads(p.fullLoads);
-      if (Array.isArray(p.visits)) setVisits(p.visits as string[]);
-      if (Array.isArray(p.done)) setDone(p.done as string[]);
-      if (typeof p.sprays === "number") setSprays(p.sprays);
-      if (p.claimedDaily && typeof p.claimedDaily === "object") setClaimedDaily(p.claimedDaily as Record<number, string>);
-      if (p.home && typeof p.home === "object") setHome(p.home as HomeSave);
-      if (typeof p.avatarZone === "string") setAvatarZone(p.avatarZone);
-      if (p.hoods && typeof p.hoods === "object") setHoods(p.hoods as Record<HoodId, number>);
-      if (typeof p.myHood === "string") setMyHood(p.myHood as HoodId);
-      if (Array.isArray(p.wardrobe)) setWardrobe(p.wardrobe as string[]);
-      if (typeof p.equipped === "string" || p.equipped === null) setEquipped(p.equipped as string | null);
-      if (p.needs && typeof p.needs === "object") {
-        const n = p.needs as Record<string, number>;
-        setNeeds({
-          hunger: typeof n.hunger === "number" ? n.hunger : 80,
-          fun: typeof n.fun === "number" ? n.fun : 70,
-          social: typeof n.social === "number" ? n.social : 70,
-          hygiene: typeof n.hygiene === "number" ? n.hygiene : 75,
-          toilet: typeof n.toilet === "number" ? n.toilet : 85,
-        });
-      }
-      if (typeof p.trait === "string" || p.trait === null) setTrait((p.trait as string | null) ?? null);
-      if (typeof p.lastFreshDay === "number") setLastFreshDay(p.lastFreshDay);
-      if (typeof p.lastToiletDay === "number") setLastToiletDay(p.lastToiletDay);
-      if (p.npc && typeof p.npc === "object") setNpc(p.npc as Record<string, { meets: number }>);
-      if (Array.isArray(p.journal)) setJournal((p.journal as { day: number; text: string }[]).filter((j) => j && typeof j.text === "string").slice(-50));
-      if (p.skills && typeof p.skills === "object") {
-        const merged = emptySkills();
-        for (const sk of SKILLS) {
-          const v = (p.skills as Record<string, unknown>)[sk.id] as { xp?: number; level?: number } | undefined;
-          if (v && typeof v.xp === "number" && typeof v.level === "number") merged[sk.id] = { xp: v.xp, level: v.level };
-        }
-        setSkills(merged);
-      }
-      if (typeof p.careerId === "string" || p.careerId === null) setCareerId((p.careerId as string | null) ?? null);
-      if (p.careerLevels && typeof p.careerLevels === "object") setCareerLevels(p.careerLevels as Record<string, number>);
-      if (typeof p.lastShiftDay === "number") setLastShiftDay(p.lastShiftDay);
-      setStarted(true);
       setCloudReady(true);
-      push("☁️ Cloud save loaded — welcome back.");
     })();
+    return () => {
+      dead = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser]);
+  }, [authUser, hydrated]);
 
   async function pushCloud(force = false) {
     if (!backendOn() || !authUser) return;
+    const s = latestSave();
+    if (!s.started) return;
+    const b = saveBody(s);
+    if (!force && b === lastPushed.current) return;
     const { getSupabase } = await import("@/lib/supabase");
     const sb = getSupabase();
     if (!sb) return;
-    const snap = JSON.stringify({
-      username, bgId, bond, paidObligations, gender, look, ola, iwa, energy, day, micraRuns, trades,
-      examPass, familyCount, rests, fullLoads, visits, done, sprays, claimedDaily,
-      shopGreets, viewDay, home, avatarZone, hoods, myHood, wardrobe, equipped, myCode,
-    });
-    if (!force && snap === lastPushed.current) return;
-    lastPushed.current = snap;
-    await sb.from("profiles").upsert(
-      {
-        id: authUser.id,
-        username: username || "omo",
-        arch_id: bgId,
-        gender,
-        look,
-        wallet: { ola, iwa, energy },
-        progress: {
-          v: 2, bond, paidObligations, lastFamilyDay,
-          day, micraRuns, trades, examPass, familyCount, rests, fullLoads, visits,
-          done, sprays, claimedDaily, shopGreets, viewDay, home, avatarZone, myCode, walkWeek, walkDay,
-          needs, trait, lastFreshDay, lastToiletDay, npc, journal, skills, careerId, careerLevels, lastShiftDay,
-        },
-        hoods,
-        my_hood: myHood,
-        wardrobe,
-        equipped,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "id" }
-    );
+    const { error } = await sb.from("profiles").upsert(cloudRowFor(authUser.id, s), { onConflict: "id" });
+    if (!error) lastPushed.current = b;
   }
 
-  // debounced cloud push on progress change
+  // push a few seconds after any progress change, and when the tab is hidden
   useEffect(() => {
-    if (!authUser || !cloudReady || !started) return;
+    if (!authUser || !cloudReady) return;
     const t = setTimeout(() => {
       pushCloud();
-    }, 8000);
+    }, 4000);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [authUser, cloudReady, ola, iwa, energy, day, done, hoods, wardrobe, equipped, home, look, needs, trait]);
+  }, [authUser, cloudReady, body]);
+
+  useEffect(() => {
+    if (!authUser || !cloudReady) return;
+    const flush = () => {
+      if (document.visibilityState === "hidden") pushCloud();
+    };
+    document.addEventListener("visibilitychange", flush);
+    return () => document.removeEventListener("visibilitychange", flush);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authUser, cloudReady]);
 
   // global turf flush (real shared board)
   useEffect(() => {
@@ -676,75 +618,32 @@ export default function Home() {
       jot("Full 6/6 load out of the park — tout hail am.");
     }
     push(msg);
-    // Day advances every 6 hustle actions; new day may bring wahala
-    setActions((a) => {
-      const na = a + 1;
-      if (na % 6 === 0) {
-        const nd = day + 1;
-        setDay(nd);
-        setWeather("clear");
-        push(`🌅 Day ${nd} for Ibadan. New mercy, new hustle.`);
-        onNewDay(nd);
-        // needs decay (adapted from lib/ibadanlife/needs to our day cycle)
-        const hyg = trait === "cleanfreak" ? 6 : 12;
-        const dn = {
-          hunger: Math.max(0, needs.hunger - 12),
-          fun: Math.max(0, needs.fun - 10),
-          social: Math.max(0, needs.social - 10),
-          hygiene: Math.max(0, needs.hygiene - hyg),
-          toilet: Math.max(0, needs.toilet - 15),
-        };
-        setNeeds(dn);
-        if (needs.hunger > 0 && dn.hunger === 0) {
-          setEnergy((e) => Math.max(5, e - 10));
-          push("🍲 Hunger crash! -10⚡. Ebi no be mate.");
-        }
-        if (needs.toilet > 0 && dn.toilet === 0) {
-          setIwa((v) => Math.max(0, v - 3));
-          push("🚻 Embarrassment for public! Iwa -3. Toilet first next time.");
-        }
-        if (dn.hunger <= 15 && dn.hunger > 0) push("🍲 Ebi dey wire you — find food before hustle pay suffers.");
-        if (dn.fun <= 15) push("🎉 Boredom — owambe or Agodi dey call.");
-        if (dn.social <= 15) push("👥 Lonely — gist for Ojude or greet somebody.");
-        if (dn.hygiene <= 15) push("🚿 Freshen up — body dey tell.");
-        if (dn.toilet <= 15 && dn.toilet > 0) push("🚻 Pressed — find toilet now.");
-        if (!event && Math.random() < 0.75) {
-          const pool = eventsFor(bg.id);
-          setEvent(pool[Math.floor(Math.random() * pool.length)]);
-        }
-      }
-      return na;
-    });
+    spendActions(1);
   };
 
-  // ---- background life: upkeep, allowance, obligations (runs once per new day) ----
-  const onNewDay = (nd: number) => {
-    const upkeep = upkeepFor(bg);
-    if (upkeep > 0) {
-      setOla((o) => Math.max(0, o - upkeep));
-      push(`⛽ ${bg.dailyUpkeep.map((u) => u.label).join(" + ")}: −${naira(upkeep)}.`);
+  // ---- time: every ACTIONS_PER_DAY hustle actions is a new day (rules in lib/engine/day) ----
+  const spendActions = (n: number) => {
+    let newDays = 0;
+    for (let i = 0; i < n; i++) {
+      actionsRef.current += 1;
+      if (actionsRef.current % ACTIONS_PER_DAY === 0) newDays += 1;
     }
-    if (bg.allowancePerWeek > 0 && nd % 7 === 0) {
-      const paid = allowanceDue(bg, nd, bond);
-      if (paid > 0) {
-        setOla((o) => o + paid);
-        push(`💳 Daddy's allowance landed: +${naira(paid)}.`);
-      } else {
-        push(`💳 No allowance this week. Daddy says you know what you did (approval ${bond}).`);
-        jot(`Day ${nd}: allowance stopped — Daddy's approval too low.`);
-      }
-    }
-    for (const o of overdueObligations(bg, nd, paidObligations)) {
-      if (nd === o.dueDay + 1) {
-        setBond((b) => Math.max(0, b - 15));
-        setIwa((v) => Math.max(0, v - 5));
-        jot(`Day ${nd}: missed ${o.title}.`);
-        push(`😞 ${o.title} is overdue. ${bg.bondLabel} −15, Iwa −5. You can still pay it.`);
-      }
-    }
-    for (const o of upcomingObligations(bg, nd, paidObligations, 2)) {
-      if (o.dueDay >= nd) push(`📌 ${o.title}: ${naira(o.amount)} due by Day ${o.dueDay}.`);
-    }
+    setActions(actionsRef.current);
+    for (let i = 1; i <= newDays; i++) startDay(day + i);
+  };
+
+  const startDay = (nd: number) => {
+    const r = advanceDay({ day: nd, bg, bond, needs, trait, paidObligations, eventPending: !!event });
+    setDay(nd);
+    setWeather("clear");
+    setNeeds((n) => decayNeeds(n, trait));
+    if (r.olaDelta) setOla((o) => Math.max(0, o + r.olaDelta));
+    if (r.iwaDelta) setIwa((v) => Math.max(0, Math.min(100, v + r.iwaDelta)));
+    if (r.energyDelta) setEnergy((e) => Math.max(5, Math.min(100, e + r.energyDelta)));
+    if (r.bondDelta) setBond((b) => Math.max(0, Math.min(100, b + r.bondDelta)));
+    r.messages.forEach(push);
+    for (const text of r.journal) setJournal((j) => [...j.slice(-49), { day: nd, text }]);
+    if (r.event) setEvent(r.event);
   };
 
   const payObligation = (id: string) => {
@@ -803,7 +702,7 @@ export default function Home() {
       case "m5": return examPass >= 3;
       case "m6": return day >= 4;
       case "m7": return familyCount >= 1;
-      case "m8": return ola >= 300000 && iwa >= 60;
+      case "m8": return ola >= 1000000 && iwa >= 65;
       default: return false;
     }
   };
@@ -815,12 +714,12 @@ export default function Home() {
     setOla((o) => o + olaR);
     setIwa((v) => Math.min(100, v + m.rewardIwa));
     setHoods((h) => ({ ...h, [myHood]: h[myHood] + olaR }));
-    if (authUser) pendingTurf.current += m.rewardOla;
+    if (authUser) pendingTurf.current += olaR;
     setDone((d) => [...d, id]);
     ensureAudio();
     coin();
     jot(`Day ${day}: mission complete — ${m.title}.`);
-    push(`🏅 Mission complete: ${m.title}! +₦${m.rewardOla}, Iwa +${m.rewardIwa}.`);
+    push(`🏅 Mission complete: ${m.title}! +${naira(olaR)}, Iwa +${m.rewardIwa}.`);
   };
 
   const takeEvent = (ev: LifeEvent, optIdx: number) => {
@@ -914,12 +813,15 @@ export default function Home() {
     push("🚻 Relieved. Toilet +40. No story.");
   };
 
+  // travel home the normal way (fare/energy apply), then stand at the district spawn
   const goHome = () => {
-    const hz = ZONES.find((z) => z.id === bg.homeZone) ?? ZONES[0];
-    const c = zoneCenter(hz);
-    setTeleport((t) => ({ x: c.x, y: c.y + 1.2, key: (t?.key ?? 0) + 1 }));
     setTab("map");
-    push(`🏠 Walking home — ${hz.label}. Your room dey wait.`);
+    if (node === bg.homeZone) {
+      teleportTo(bg.homeZone);
+      push(`🏠 Back at ${bg.homeLabel}. Your room dey wait.`);
+      return;
+    }
+    travelTo(bg.homeZone);
   };
 
   const onAvatarZone = (id: string) => {
@@ -965,6 +867,8 @@ export default function Home() {
     const level = careerLevels[c.id] ?? entryLevel(c.id, bg.connections);
     const pay = careerPay(c.id, level);
     setLastShiftDay(day);
+    // a shift costs 20⚡ in total: 15 here + 5 from earn()
+    setEnergy((e) => Math.max(5, e - 15));
     addSkill(c.skill, 20);
     earn(pay, 2, `💼 Shift complete: ${c.levels[level - 1].title} @ ${c.workplace}. +₦${pay.toLocaleString()}, ${c.skill} +20 XP.`);
   };
@@ -1093,13 +997,24 @@ export default function Home() {
   };
 
   // interstate terminal runs (Ajala discount applied in Terminal display)
+  // one run per day, needs energy, and eats half the day
+  const terminalBlocked =
+    lastTerminalDay === day ? "One interstate run per day. The buses leave at dawn."
+    : energy < TERMINAL_ENERGY ? `Too tired to travel (needs ${TERMINAL_ENERGY}⚡). Chop or rest first.`
+    : null;
   const tripTerminal = (cost: number, gain: number, msg: string) => {
+    if (terminalBlocked) {
+      push(`🚌 ${terminalBlocked}`);
+      return;
+    }
+    setLastTerminalDay(day);
     setOla((o) => Math.max(0, o - cost + gain));
-    setEnergy((e) => Math.max(5, e - 15));
+    setEnergy((e) => Math.max(5, e - TERMINAL_ENERGY));
     setHoods((h) => ({ ...h, [myHood]: h[myHood] + gain }));
     if (authUser) pendingTurf.current += gain;
     jot(`Day ${day}: interstate run done — goods offloaded.`);
     push(msg);
+    spendActions(TERMINAL_ACTIONS);
   };
 
   // daily hunt claim (one per weekday per real date)
@@ -1110,11 +1025,11 @@ export default function Home() {
     setOla((o) => o + olaH);
     setIwa((v) => Math.min(100, v + rewardIwa));
     setHoods((h) => ({ ...h, [myHood]: h[myHood] + olaH }));
-    if (authUser) pendingTurf.current += rewardOla;
+    if (authUser) pendingTurf.current += olaH;
     ensureAudio();
     coin();
     jot(`Day ${day}: cleared daily hunt — ${title}.`);
-    push(`🎯 Daily hunt cleared: ${title}! +₦${rewardOla}, Iwa +${rewardIwa}. See you tomorrow.`);
+    push(`🎯 Daily hunt cleared: ${title}! +${naira(olaH)}, Iwa +${rewardIwa}. See you tomorrow.`);
   };
 
   const deedMet = (check: string): boolean => {
@@ -1136,24 +1051,30 @@ export default function Home() {
     setOla((o) => o + olaD);
     setIwa((v) => Math.min(100, v + d.rewardIwa));
     setHoods((h) => ({ ...h, [myHood]: h[myHood] + olaD }));
-    if (authUser) pendingTurf.current += d.rewardOla;
+    if (authUser) pendingTurf.current += olaD;
     setDone((x) => [...x, id]);
     const dl = DISTRICT_DEEDS.find((y) => y.id === id);
     if (dl) jot(`Day ${day}: sealed ${dl.title} for ${(MAP_NODES.find((nn) => nn.id === dl.zone)?.name ?? dl.zone)}.`);
     const label = MAP_NODES.find((n) => n.id === d.zone)?.name ?? d.zone;
     ensureAudio();
     coin();
-    push(`🏅 Deed sealed in ${label}: ${d.title}! +₦${d.rewardOla}, Iwa +${d.rewardIwa}.`);
+    push(`🏅 Deed sealed in ${label}: ${d.title}! +${naira(olaD)}, Iwa +${d.rewardIwa}.`);
   };
 
   const answer = (idx: number) => {
-    const q = EXAM_POOL[qi % EXAM_POOL.length];
+    const q = examQuestion(qi);
     if (idx === q.answer) {
       setExamPass((n) => n + 1);
       meet("Ada");
       setNeeds((n) => ({ ...n, fun: Math.min(100, n.fun + 5) }));
       addSkill("brain", 25);
-      earn(PRICES.examReward, 3, `✅ Exam correct! +${naira(PRICES.examReward)}, Iwa +3. (${q.q})`, "exam");
+      const paidToday = exam.day === day ? exam.paid : 0;
+      if (paidToday < EXAM_PAID_PER_DAY) {
+        setExam({ day, paid: paidToday + 1 });
+        earn(PRICES.examReward, 3, `✅ Exam correct! +${naira(PRICES.examReward)}, Iwa +3. (${q.q})`, "exam");
+      } else {
+        earn(0, 0, `✅ Correct, but Ada's tutorial money is done for today. Brain XP still counts. (${q.q})`, "exam");
+      }
     } else {
       earn(0, 0, `❌ Fail. Correct: ${q.options[q.answer]}. Try again — no Iwa loss.`, "exam");
     }
@@ -1301,7 +1222,7 @@ export default function Home() {
     );
   }
 
-  const q = EXAM_POOL[qi % EXAM_POOL.length];
+  const q = examQuestion(qi);
 
   return (
     <main className="min-h-screen bg-cream bg-[radial-gradient(ellipse_at_top,#F5D9A8_0%,#FAF6F0_50%)]">
@@ -1515,7 +1436,7 @@ export default function Home() {
               <BodijaMarket ola={ola} onTrade={(dO, dI, m) => earn(dO, dI, m, dO > 0 ? "trade" : undefined)} />
             )}
             {doorOpen.action === "terminal" && (
-              <Terminal ola={ola} onTrip={tripTerminal} fareMult={trait === "ajala" ? 0.85 : 1} />
+              <Terminal ola={ola} onTrip={tripTerminal} blocked={terminalBlocked} fareMult={trait === "ajala" ? 0.85 : 1} />
             )}
             {doorOpen.action === "exam" && (
               <div className="rounded-3xl bg-white p-4 ring-1 ring-roof/10">
@@ -1652,10 +1573,10 @@ export default function Home() {
                           <div className="mt-1.5">
                             <div className="flex justify-between text-[11px] font-bold">
                               <span>{SKILLS.find((s) => s.id === c.skill)?.icon} {c.skill} Lv{haveXp}</span>
-                              <span className="opacity-60">{skills[c.skill]?.xp ?? 0}/{SKILLS.find((s) => s.id === c.skill)?.xpPerLevel ?? 100} XP</span>
+                              <span className="opacity-60">{skills[c.skill]?.xp ?? 0}/{xpToNext(c.skill, haveXp)} XP</span>
                             </div>
                             <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/10">
-                              <div className="h-full rounded-full bg-mapo" style={{ width: `${Math.min(100, ((skills[c.skill]?.xp ?? 0) / (SKILLS.find((s) => s.id === c.skill)?.xpPerLevel ?? 100)) * 100)}%` }} />
+                              <div className="h-full rounded-full bg-mapo" style={{ width: `${Math.min(100, ((skills[c.skill]?.xp ?? 0) / xpToNext(c.skill, haveXp)) * 100)}%` }} />
                             </div>
                           </div>
                           <div className="mt-2.5 flex gap-2">
@@ -1678,7 +1599,7 @@ export default function Home() {
                               <span className="font-bold">{s.icon} {s.name}</span>
                               <span className="float-right font-extrabold text-mapo">Lv{skills[s.id]?.level ?? 0}</span>
                               <div className="mt-1 h-1 overflow-hidden rounded-full bg-white/10">
-                                <div className="h-full rounded-full bg-mapo/70" style={{ width: `${Math.min(100, ((skills[s.id]?.xp ?? 0) / s.xpPerLevel) * 100)}%` }} />
+                                <div className="h-full rounded-full bg-mapo/70" style={{ width: `${Math.min(100, ((skills[s.id]?.xp ?? 0) / xpToNext(s.id, skills[s.id]?.level ?? 0)) * 100)}%` }} />
                               </div>
                             </div>
                           ))}
@@ -1690,7 +1611,7 @@ export default function Home() {
               </div>
               <MicraRush saver={saver} weather={weather} fareMult={trait === "ajala" ? 0.85 : 1} onEarn={(dO, dI, m) => earn(dO, dI, m, /6\/6 FULL LOAD/.test(m) ? "fullload" : /complete|Rode micra|Iwo Road park/.test(m) ? "micra" : undefined)} />
               <BodijaMarket ola={ola} onTrade={(dO, dI, m) => earn(dO, dI, m, dO > 0 ? "trade" : undefined)} />
-              <Terminal ola={ola} onTrip={tripTerminal} fareMult={trait === "ajala" ? 0.85 : 1} />
+              <Terminal ola={ola} onTrip={tripTerminal} blocked={terminalBlocked} fareMult={trait === "ajala" ? 0.85 : 1} />
             </div>
           )}
           {tab === "ra" && (

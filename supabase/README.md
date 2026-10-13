@@ -7,7 +7,8 @@ global hood board.
 ## 1) Supabase (accounts + cloud + realtime)
 
 1. Go to https://supabase.com → New project (free). Name it `omo-ibadan`.
-2. Open **SQL Editor** → paste `supabase/schema.sql` from this repo → Run.
+2. Open **SQL Editor** → paste `supabase/schema.sql` from this repo → Run. Then do the same with `supabase/walk.sql`.
+   Both files are safe to re-run. **Existing projects must re-run both** to get the October 2026 lockdown: `add_turf` now requires sign-in, only adds to known hoods and is capped per hour; walk steps can only be written through `add_walk_steps`.
 3. **Authentication → Providers** → enable **Email**. OTP (magic link) is on by default — no passwords needed, best for students.
 4. **Project Settings → API**: copy `Project URL` + `anon public` key.
 5. Create `.env.local` in the project root (copy from `.env.local.example`) and paste both values.

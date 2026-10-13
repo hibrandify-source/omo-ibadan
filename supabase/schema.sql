@@ -50,23 +50,52 @@ drop policy if exists "turf public read" on hood_totals;
 create policy "turf public read"
   on hood_totals for select using (true);
 
--- 3) Secure increment: anyone authed can add (never subtract) turf.
+-- 3) Secure increment: signed-in players add (never subtract) turf to an
+--    existing hood, capped per call and per hour. The log table has RLS on
+--    and no policies, so only this function can touch it.
+create table if not exists turf_log (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  amount bigint not null,
+  at timestamptz not null default now()
+);
+create index if not exists turf_log_user_at on turf_log (user_id, at);
+alter table turf_log enable row level security;
+
 create or replace function add_turf(p_hood text, p_amount bigint)
 returns void
 language plpgsql
 security definer
+set search_path = public
 as $$
+declare
+  uid uuid := auth.uid();
+  last_hour bigint;
 begin
-  if p_amount < 0 or p_amount > 100000 then
+  if uid is null then
+    raise exception 'sign in first';
+  end if;
+  if p_amount is null or p_amount <= 0 or p_amount > 100000 then
     raise exception 'bad amount';
   end if;
-  insert into hood_totals (hood, total, updated_at)
-    values (p_hood, p_amount, now())
-  on conflict (hood) do update
-      set total = hood_totals.total + excluded.total,
-          updated_at = now();
+  select coalesce(sum(amount), 0) into last_hour
+    from turf_log where user_id = uid and at > now() - interval '1 hour';
+  if last_hour + p_amount > 300000 then
+    raise exception 'turf cap reached, try later';
+  end if;
+  -- update only: unknown hoods are rejected, never created
+  update hood_totals
+     set total = total + p_amount, updated_at = now()
+   where hood = p_hood;
+  if not found then
+    raise exception 'unknown hood';
+  end if;
+  insert into turf_log (user_id, amount) values (uid, p_amount);
+  delete from turf_log where user_id = uid and at < now() - interval '1 day';
 end;
 $$;
+
+revoke execute on function add_turf(text, bigint) from public, anon;
+grant execute on function add_turf(text, bigint) to authenticated;
 
 -- Presence needs no table (Realtime presence channels).
 -- In Dashboard → Database → Replication, enable nothing extra.
