@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import SiteNav from "@/components/SiteNav";
 import SiteFooter from "@/components/SiteFooter";
@@ -10,7 +10,6 @@ export const metadata: Metadata = {
     "Je Omoluabi. Ko Ola, Ko Iwa. A free browser life-sim set in Ibadan: hustle micra, trade Bodija market, survive NEPA, rep your hood. No download.",
   applicationName: "Omo Ibadan",
   manifest: "/manifest.webmanifest",
-  themeColor: "#7A4A2B",
   appleWebApp: {
     capable: true,
     title: "Omo Ibadan",
@@ -26,6 +25,10 @@ export const metadata: Metadata = {
     siteName: "Omo Ibadan",
     locale: "en_NG",
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#7A4A2B",
 };
 
 export default function RootLayout({
