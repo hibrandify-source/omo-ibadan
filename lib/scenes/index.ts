@@ -3,6 +3,7 @@
 
 import { BEERE } from "./beere";
 import { BODIJA } from "./bodija";
+import { IWO_ROAD } from "./iwoRoad";
 import { OJA_OBA } from "./ojaOba";
 import { OLD_BODIJA } from "./oldBodija";
 import type { SceneDef } from "./types";
@@ -12,6 +13,7 @@ export const STREET_SCENES: Record<string, SceneDef> = {
   "old-bodija": OLD_BODIJA,
   "oja-oba": OJA_OBA,
   bodija: BODIJA,
+  "iwo-road": IWO_ROAD,
 };
 
 export const streetSceneFor = (zone: string): SceneDef | undefined => STREET_SCENES[zone];

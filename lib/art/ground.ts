@@ -359,6 +359,26 @@ export function drawUmbrellaStall(ctx: Ctx, colors: [string, string], goods: "to
   ctx.fill();
 }
 
+/** Traffic light on a pole by the kerb. */
+export function drawTrafficLight(ctx: Ctx, red: boolean) {
+  groundShadow(ctx, 0.3, 0.05, 0.4, 0.1, 0.2);
+  line(ctx, 0, 0, 0, -3.2 * K, "#2b2b2b", 0.09);
+  rrect(ctx, -0.2, -3.2 * K - 0.95, 0.4, 0.95, 0.06);
+  ctx.fillStyle = "#1c1c1c";
+  ctx.fill();
+  const lamps: [string, boolean][] = [["#e0281c", red], ["#e9b22a", false], ["#2fbf4a", !red]];
+  lamps.forEach(([c, on], i) => {
+    oval(ctx, 0, -3.2 * K - 0.8 + i * 0.3, 0.1, 0.1);
+    ctx.fillStyle = on ? c : shade(c, -0.7);
+    ctx.fill();
+    if (on) {
+      oval(ctx, 0, -3.2 * K - 0.8 + i * 0.3, 0.22, 0.22);
+      ctx.fillStyle = alpha(c, 0.25);
+      ctx.fill();
+    }
+  });
+}
+
 /** Wooden bench. Origin centre on the ground. */
 export function drawBench(ctx: Ctx, w = 1.6) {
   rrect(ctx, -w / 2, -0.45 * K - 0.12, w, 0.28, 0.03);

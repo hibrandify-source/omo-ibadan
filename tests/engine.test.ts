@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { BACKGROUNDS, EXAM_POOL, MAP_NODES, PRICES, distanceKm, emptySkills, grantXp, MAX_SKILL_LEVEL } from "@/lib/game";
-import { mapDistrict, roadKm } from "@/lib/map/ibadan";
+import { CITY, mapDistrict, roadKm } from "@/lib/map/ibadan";
+import { autopilotInput, createDrive, pointOnPath, stepDrive, type DriveInput, type DriveState } from "@/lib/engine/drive";
 import { STREET_SCENES } from "@/lib/scenes";
 import { isBlocked, reachable, sceneBlockers } from "@/lib/scenes/collision";
 import { CAST } from "@/lib/art/cast";
@@ -275,6 +276,68 @@ describe("walkable scenes", () => {
 
   it("each life's home has a walkable scene", () => {
     for (const bg of Object.values(BACKGROUNDS)) expect(STREET_SCENES[bg.homeZone], bg.id).toBeDefined();
+  });
+});
+
+describe("Micra Rush on real corridors", () => {
+  const corridor = CITY.corridors[0];
+  const names = corridor.stops.map((s) => s.toUpperCase());
+  const run = (s: DriveState, input: (s: DriveState) => DriveInput, maxT = 400) => {
+    const events = [];
+    for (let i = 0; i < maxT * 30 && !s.finished; i++) events.push(...stepDrive(s, input(s), 1 / 30));
+    return events;
+  };
+
+  it("corridors come from the road network, with a leg per pair of stops", () => {
+    for (const c of CITY.corridors) {
+      expect(c.legKm.length).toBe(c.stops.length - 1);
+      for (const k of c.legKm) expect(k).toBeGreaterThan(0.5);
+      expect(c.path.length).toBeGreaterThan(20);
+    }
+  });
+
+  it("the autopilot rides the whole corridor, stopping clean at every bay without a scratch", () => {
+    const s = createDrive(corridor, names, { autopilot: true, seed: 7 });
+    const ev = run(s, autopilotInput, 120);
+    expect(s.finished).toBe(true);
+    expect(ev.filter((e) => e.type === "bay").every((e) => e.type === "bay" && e.ok)).toBe(true);
+    expect(ev.filter((e) => e.type === "bay")).toHaveLength(corridor.stops.length - 1);
+    expect(ev.some((e) => e.type === "hazard")).toBe(false);
+  });
+
+  it("a driver who never stops misses every bay", () => {
+    const s = createDrive(corridor, names, { autopilot: false, seed: 7 });
+    const ev = run(s, () => ({ gas: true, brake: false, laneTarget: 1, stop: false, honk: false }));
+    const bays = ev.filter((e) => e.type === "bay");
+    expect(bays).toHaveLength(corridor.stops.length - 1);
+    expect(bays.every((e) => e.type === "bay" && !e.ok)).toBe(true);
+  });
+
+  it("running a red light is caught; honking clears an okada", () => {
+    const s = createDrive(corridor, names, { autopilot: false, seed: 3 });
+    s.obstacles = [];
+    s.checks = [];
+    // hold every light on red and drive straight through
+    const red = run(s, (st) => {
+      for (const g of st.signals) g.offset = (9 - (st.t % 9)) % 9;
+      return { gas: true, brake: false, laneTarget: 1, stop: false, honk: false };
+    });
+    const hazards = red.filter((e) => e.type === "hazard");
+    expect(hazards).toHaveLength(s.signals.length);
+    expect(hazards.every((e) => e.type === "hazard" && e.kind === "signal")).toBe(true);
+
+    const h = createDrive(corridor, names, { autopilot: false, seed: 3 });
+    h.obstacles = [{ id: 1, kind: "okada", lane: 0, x: 15, speed: 0, cross: 0, hit: false, scattered: false }];
+    h.x = 0;
+    const out = stepDrive(h, { gas: false, brake: false, laneTarget: 0, stop: false, honk: true }, 1 / 30);
+    expect(out).toContainEqual({ type: "honk", cleared: "okada" });
+    expect(h.obstacles[0].scattered).toBe(true);
+  });
+
+  it("the mini-map position walks the real path from first stop to last", () => {
+    const p = corridor.path;
+    expect(pointOnPath(p, 0)).toEqual([p[0], p[1]]);
+    expect(pointOnPath(p, 1)).toEqual([p[p.length - 2], p[p.length - 1]]);
   });
 });
 

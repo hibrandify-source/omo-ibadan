@@ -39,6 +39,8 @@ export const CARS = {
   micra: { length: 3.72, width: 1.59, height: 1.43, belt: 0.82, hood: 0.72, trunk: 0.18, slopeF: 0.55, slopeR: 0.32, roofInset: 0.86, body: PAL.commBrown, roof: PAL.commYellow, band: PAL.commYellow, wheel: 0.28, dirt: 0.35, plate: "IBD 412 OY" },
   /** Toyota Hiace commercial bus ("korope") */
   korope: { length: 4.7, width: 1.69, height: 1.98, belt: 1.02, hood: 0.32, trunk: 0, slopeF: 0.35, slopeR: 0.05, roofInset: 0.94, body: PAL.commYellow, roof: shade(PAL.commYellow, 0.08), band: PAL.commBrown, wheel: 0.3, sideWindows: 4, dirt: 0.45, plate: "BDJ 77 OY", roofRack: true },
+  /** white interstate bus (Hiace-style) that runs Ibadan–Lagos/Ife/Abuja from Iwo Road */
+  interstate: { length: 5.4, width: 1.88, height: 2.28, belt: 1.1, hood: 0.35, trunk: 0, slopeF: 0.4, slopeR: 0.05, roofInset: 0.94, body: "#f1efe8", roof: "#e9e6de", band: "#1f6b4a", wheel: 0.32, sideWindows: 5, dirt: 0.3, plate: "IWO 18 OY", roofRack: true },
   /** tired silver Corolla, the tokunbo everybody's uncle drives */
   corolla: { length: 4.42, width: 1.69, height: 1.39, belt: 0.84, hood: 1.0, trunk: 0.72, slopeF: 0.62, slopeR: 0.48, roofInset: 0.86, body: "#9aa1a6", wheel: 0.29, dirt: 0.25, plate: "KUT 503 OY" },
   /** black Camry "Muscle" */

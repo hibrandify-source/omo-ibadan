@@ -34,6 +34,8 @@ export interface CityMapData {
   districts: MapDistrict[];
   landmarks: { name: string; x: number; y: number }[];
   roadKm: Record<string, number>;
+  /** micra corridors: stops in order, road km per leg, real path for the mini-map */
+  corridors: { id: string; name: string; stops: string[]; legKm: number[]; path: number[] }[];
 }
 
 export const CITY = RAW as CityMapData;

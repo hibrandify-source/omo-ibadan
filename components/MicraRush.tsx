@@ -1,34 +1,21 @@
 "use client";
 
-import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
-import { ECONOMY, PRICES, naira } from "@/lib/game";
+// Micra Rush: drive (or ride) a real Ibadan corridor. Fares, fines and
+// passengers live here; the road and its rules are in RoadRun / lib/engine/drive.
+
+import { useMemo, useState } from "react";
+import { ECONOMY, MAP_NODES, PRICES, naira } from "@/lib/game";
+import { CITY } from "@/lib/map/ibadan";
+import type { HazardKind } from "@/lib/engine/drive";
+import RoadRun from "./RoadRun";
 
 const TP = PRICES.transport;
-import { DRIVE_ROUTES } from "@/lib/world";
-import DriveStage, { type HazardKind } from "./DriveStage";
 
-const Drive3D = dynamic(() => import("./Drive3D"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-[380px] items-center justify-center rounded-2xl bg-black text-sm text-cream/70">
-      Starting engine in 3D…
-    </div>
-  ),
-});
-
-function hasWebGL(): boolean {
-  try {
-    const c = document.createElement("canvas");
-    return !!(c.getContext("webgl2") || c.getContext("webgl"));
-  } catch {
-    return false;
-  }
-}
+/** Short stop names for bus-stop boards: "Dugbe / Cocoa House" -> "DUGBE". */
+const stopName = (id: string) => (MAP_NODES.find((n) => n.id === id)?.name ?? id).split(/[/(+–-]/)[0].trim().toUpperCase();
 
 export default function MicraRush({
   onEarn,
-  saver,
   weather,
   fareMult,
 }: {
@@ -38,26 +25,23 @@ export default function MicraRush({
   fareMult?: number; // Ajala Traveller transport discount (0.85)
 }) {
   const [mode, setMode] = useState<"ride" | "drive">("drive");
-  const [view, setView] = useState<"3d" | "2d">("3d");
-  const [phase, setPhase] = useState<"dusk" | "night">(() => {
+  const [night, setNight] = useState(() => {
     const h = new Date().getHours();
-    return h >= 19 || h < 6 ? "night" : "dusk";
+    return h >= 19 || h < 6;
   });
-  const [routeId, setRouteId] = useState(DRIVE_ROUTES[0].id);
+  const [routeId, setRouteId] = useState(CITY.corridors[0].id);
   const [passengers, setPassengers] = useState(0);
   const [running, setRunning] = useState(false);
-  const [runKey, setRunKey] = useState(0);
-  const [log, setLog] = useState("Pick a real corridor, load up, and drive it like na your papa road — with sense.");
+  const [runKey, setRunKey] = useState(1);
+  const [log, setLog] = useState("Pick a real corridor, load up, and drive it with sense.");
 
-  const route = DRIVE_ROUTES.find((r) => r.id === routeId) ?? DRIVE_ROUTES[0];
-
-  useEffect(() => {
-    if (!hasWebGL()) setView("2d");
-  }, []);
+  const corridor = CITY.corridors.find((c) => c.id === routeId) ?? CITY.corridors[0];
+  const stopNames = useMemo(() => corridor.stops.map(stopName), [corridor]);
+  const endLabel = stopNames[stopNames.length - 1];
+  const totalKm = corridor.legKm.reduce((a, b) => a + b, 0);
 
   const load = () => {
-    if (running) return;
-    if (passengers >= 6) return;
+    if (running || passengers >= 6) return;
     const next = passengers + 1;
     setPassengers(next);
     setLog(next > 4 ? "⚠️ Overload! VIO fit catch you for this corridor." : `Loaded ${next}/6. Conductor dey shout destination!`);
@@ -67,7 +51,7 @@ export default function MicraRush({
     setPassengers(0);
     setRunning(true);
     setRunKey((k) => k + 1);
-    setLog(`🧍 Riding ${route.name}. Fare ${naira(Math.round(TP.micraRideFare * (fareMult ?? 1)))} on arrival — enjoy the corridors.`);
+    setLog(`🧍 Riding ${corridor.name}. Fare ${naira(Math.round(TP.micraRideFare * (fareMult ?? 1)))} on arrival. Sit back.`);
   };
 
   const startDrive = () => {
@@ -77,7 +61,7 @@ export default function MicraRush({
     }
     setRunning(true);
     setRunKey((k) => k + 1);
-    setLog(`🛣️ Hustling ${route.name}! Steer lanes, dodge wahala, STOP at yellow bus bays.`);
+    setLog(`🛣️ Hustling ${corridor.name}! Keep right, dodge wahala, STOP inside the yellow bus bays.`);
   };
 
   const onHazard = (kind: HazardKind) => {
@@ -89,31 +73,32 @@ export default function MicraRush({
     }
     if (kind === "vio") {
       if (passengers <= 4) {
-        setLog("VIO wave you pass — clean load. 👍");
+        setLog("VIO waves you through: clean load. 👍");
         return;
       }
       onEarn(-TP.vioOverloadFine, -5, `🚨 VIO catch overload! Fine -${naira(TP.vioOverloadFine)}, Iwa -5.`);
-      setLog(`🚨 VIO catch overload for corridor! -${naira(TP.vioOverloadFine)}, Iwa -5.`);
+      setLog(`🚨 VIO catch overload! -${naira(TP.vioOverloadFine)}, Iwa -5.`);
       return;
     }
-    if (kind === "pothole") {
-      onEarn(-TP.potholeRepair, 0, `🕳️ Pothole jam! Repair -${naira(TP.potholeRepair)}.`);
-      setLog(`🕳️ Pothole for road! -${naira(TP.potholeRepair)}. This corridor wicked.`);
-    } else {
-      onEarn(-TP.bashSettle, -2, `💥 ${kind} bash! Settle -${naira(TP.bashSettle)}, Iwa -2.`);
-      setLog(`💥 ${kind} bash! -${naira(TP.bashSettle)}. Dodge with ◀ ▶.`);
+    if (kind === "walker" || kind === "goat") {
+      const who = kind === "walker" ? "a pedestrian" : "somebody's goat";
+      onEarn(-TP.bashSettle, -3, `😬 You nearly ran over ${who}! Settle -${naira(TP.bashSettle)}, Iwa -3.`);
+      setLog(`😬 You nearly ran over ${who}. Crowd gather. -${naira(TP.bashSettle)}, Iwa -3.`);
+      return;
     }
+    onEarn(-TP.bashSettle, -2, `💥 ${kind} bash! Settle -${naira(TP.bashSettle)}, Iwa -2.`);
+    setLog(`💥 ${kind} bash! -${naira(TP.bashSettle)}. Change lane early.`);
   };
 
-  const onBay = (ok: boolean) => {
+  const onBay = (ok: boolean, name: string) => {
     if (mode === "ride") return;
     if (ok) {
       const fare = passengers * TP.cleanStopPerPassenger;
-      onEarn(fare, 2, `🟢 Clean stop! Collected ${naira(fare)}, Iwa +2.`);
-      setLog(`🟢 Inside bay! +${naira(fare)}. Conductor: "O wa o!"`);
+      onEarn(fare, 2, `🟢 Clean stop at ${name}! Collected ${naira(fare)}, Iwa +2.`);
+      setLog(`🟢 Inside the ${name} bay! +${naira(fare)}. Conductor: "O wa o!"`);
     } else {
-      onEarn(0, -1, "Missed the bay — passengers no pay. Iwa -1.");
-      setLog("🔴 Missed bay! They no go pay. Watch for yellow boxes.");
+      onEarn(0, -1, `Missed the ${name} bay: passengers no pay. Iwa -1.`);
+      setLog(`🔴 Missed ${name}! Kerb lane, then STOP inside the yellow box.`);
     }
   };
 
@@ -121,19 +106,19 @@ export default function MicraRush({
     setRunning(false);
     if (mode === "ride") {
       const fare = Math.round(TP.micraRideFare * (fareMult ?? 1));
-      onEarn(-fare, 1, `Rode micra ${route.short} -${naira(fare)}. Rested + Iwa +1.`);
-      setLog(`✅ Arrived ${route.endLabel} as passenger. -${naira(fare)}, Iwa +1. No wahala.`);
+      onEarn(-fare, 1, `Rode micra ${corridor.stops[0]}–${corridor.stops[corridor.stops.length - 1]} -${naira(fare)}. Rested + Iwa +1.`);
+      setLog(`✅ Arrived ${endLabel} as passenger. -${naira(fare)}, Iwa +1. No wahala.`);
       return;
     }
     const caught = passengers > 4 && Math.random() < 0.25;
     if (caught) {
       onEarn(0, -5, "VIO catch overload at the park! Iwa -5.");
-      setLog("🚨 Park VIO catch you at finish! Overload wahala.");
+      setLog("🚨 Park VIO catch you at the finish! Overload wahala.");
     } else {
       const fare = passengers * ECONOMY.MICRA_FARE_BASE;
       const full = passengers >= 6 ? " (6/6 FULL LOAD!)" : "";
       onEarn(fare, passengers > 4 ? -2 : 3, `Micra hustle complete: +${naira(fare)}${full}`);
-      setLog(`✅ ${route.endLabel}! +${naira(fare)}. ${passengers > 4 ? "Overload paid but Iwa -2." : "Clean run. Iwa +3."}`);
+      setLog(`✅ ${endLabel}! +${naira(fare)}. ${passengers > 4 ? "Overload paid but Iwa -2." : "Clean run. Iwa +3."}`);
     }
     setPassengers(0);
   };
@@ -143,91 +128,62 @@ export default function MicraRush({
       <div className="flex flex-wrap items-center justify-between gap-2 p-4 pb-0 sm:p-5 sm:pb-0">
         <div>
           <h3 className="font-display text-lg font-extrabold tracking-tight">🚐 Micra Rush</h3>
-          <p className="text-xs text-cream/60">Real Ibadan corridors · top-down · face the road</p>
+          <p className="text-xs text-cream/60">Real Ibadan corridors from OpenStreetMap · {totalKm.toFixed(1)} km by road</p>
         </div>
         <div className="flex rounded-full bg-white/10 p-1 text-sm font-bold">
-          <button onClick={() => { if (!running) { setMode("ride"); setLog(`Ride mode: autopilot, fare ${naira(Math.round(TP.micraRideFare * (fareMult ?? 1)))}, no steering.`); } }} className={`rounded-full px-4 py-1.5 ${mode === "ride" ? "bg-cream text-charcoal" : ""}`}>🧍 Ride</button>
-          <button onClick={() => { if (!running) { setMode("drive"); setLog("Hustle mode: you steer lanes + STOP at bays."); } }} className={`rounded-full px-4 py-1.5 ${mode === "drive" ? "bg-mapo text-charcoal" : ""}`}>🛣️ Hustle</button>
+          <button onClick={() => { if (!running) { setMode("ride"); setLog(`Ride mode: sit in the back, fare ${naira(TP.micraRideFare)}.`); } }} className={`rounded-full px-4 py-1.5 ${mode === "ride" ? "bg-cream text-charcoal" : ""}`}>🧍 Ride</button>
+          <button onClick={() => { if (!running) { setMode("drive"); setLog("Hustle mode: you drive, change lanes and STOP at the bays."); } }} className={`rounded-full px-4 py-1.5 ${mode === "drive" ? "bg-mapo text-charcoal" : ""}`}>🛣️ Hustle</button>
         </div>
       </div>
 
       <div className="p-4 sm:p-5">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          {DRIVE_ROUTES.map((r) => (
+          {CITY.corridors.map((c) => (
             <button
-              key={r.id}
+              key={c.id}
               disabled={running}
-              onClick={() => { setRouteId(r.id); setLog(`${r.name}. Pothole level ${"🕳️".repeat(Math.max(1, r.potholes))}${r.potholes === 0 ? " Smooth!" : ""}`); }}
-              className={`rounded-full px-4 py-1.5 text-xs font-bold ring-1 transition disabled:opacity-40 ${routeId === r.id ? "bg-mapo text-charcoal ring-mapo" : "bg-white/10 text-cream/75 ring-white/10"}`}
+              onClick={() => { setRouteId(c.id); setLog(`${c.name}: ${c.legKm.reduce((a, b) => a + b, 0).toFixed(1)} km by road, ${c.stops.length - 1} stops.`); }}
+              className={`rounded-full px-4 py-1.5 text-xs font-bold ring-1 transition disabled:opacity-40 ${routeId === c.id ? "bg-mapo text-charcoal ring-mapo" : "bg-white/10 text-cream/75 ring-white/10"}`}
             >
-              {r.name}
+              {c.name}
             </button>
           ))}
-          <div className="ml-auto flex gap-1 rounded-full bg-white/10 p-0.5 text-[11px] font-bold">
-            <button onClick={() => !running && setView("3d")} className={`rounded-full px-3 py-1 ${view === "3d" ? "bg-mapo text-charcoal" : "text-cream/70"}`}>3D chase</button>
-            <button onClick={() => !running && setView("2d")} className={`rounded-full px-3 py-1 ${view === "2d" ? "bg-cream text-charcoal" : "text-cream/70"}`}>2D top</button>
-            <button onClick={() => !running && setPhase((p) => (p === "night" ? "dusk" : "night"))} className="rounded-full px-3 py-1 text-cream/85" title="Time of day">
-              {phase === "night" ? "🌙" : "🌇"}
-            </button>
-          </div>
+          <button onClick={() => !running && setNight((n) => !n)} className="ml-auto rounded-full bg-white/10 px-3 py-1 text-[11px] font-bold text-cream/85" title="Time of day">
+            {night ? "🌙 Night" : "🌇 Day"}
+          </button>
         </div>
 
-        {running &&
-          (view === "3d" ? (
-            <Drive3D
-              key={`3d-${route.id}-${mode}-${runKey}`}
-              route={route}
-              passengers={passengers}
-              autopilot={mode === "ride"}
-              saver={!!saver}
-              onHazard={onHazard}
-              onBay={onBay}
-              onFinish={onFinish}
-              phase={phase}
-              onHonk={(msg) => {
-                setLog(msg);
-              }}
-              weather={weather}
-              onWeak={() => {
-                setView("2d");
-                setLog("📉 3D too heavy — dropped to 2D road. Same hustle.");
-              }}
-            />
-          ) : (
-            <DriveStage
-              key={`2d-${route.id}-${mode}-${runKey}`}
-              route={route}
-              passengers={passengers}
-              autopilot={mode === "ride"}
-              saver={!!saver}
-              onHazard={onHazard}
-              onBay={onBay}
-              onFinish={onFinish}
-              onHonk={(msg) => {
-                setLog(msg);
-              }}
-              weather={weather}
-            />
-          ))}
+        {running && (
+          <RoadRun
+            key={runKey}
+            corridor={corridor}
+            stopNames={stopNames}
+            autopilot={mode === "ride"}
+            seed={runKey}
+            weather={weather}
+            night={night}
+            onHazard={onHazard}
+            onBay={onBay}
+            onFinish={onFinish}
+            onHonk={setLog}
+          />
+        )}
 
         <p className="mt-2 min-h-[2.5rem] text-sm text-cream/85">{log}</p>
         <div className="mt-1 text-sm">Seats: {"🪑".repeat(passengers) || "—"} <span className="opacity-60">({passengers}/6)</span></div>
 
         {mode === "ride" ? (
           <div className="mt-3 flex gap-2">
-            <button onClick={startRide} disabled={running} className="flex-1 rounded-full bg-cream py-2.5 text-sm font-bold text-charcoal disabled:opacity-40">Board micra — auto ride {naira(Math.round(TP.micraRideFare * (fareMult ?? 1)))}</button>
+            <button onClick={startRide} disabled={running} className="flex-1 rounded-full bg-cream py-2.5 text-sm font-bold text-charcoal disabled:opacity-40">Board micra — ride {naira(Math.round(TP.micraRideFare * (fareMult ?? 1)))}</button>
           </div>
         ) : (
-          <div className="mt-3">
-            {!running && (
-              <div className="flex flex-wrap gap-2">
-                <button onClick={load} className="rounded-full bg-mapo px-4 py-2 text-sm font-bold text-charcoal">Load +1</button>
-                <button onClick={startDrive} className="flex-1 rounded-full bg-agodi px-4 py-2 text-sm font-bold text-white">Depart hustle 🛣️</button>
-                <button onClick={() => setPassengers(0)} className="rounded-full bg-white/10 px-4 py-2 text-sm">Reset</button>
-              </div>
-            )}
-            <p className="mt-2 text-[11px] text-cream/50">Desktop: ← → steer, Space = stop. Mobile: tap ◀ ▶ + STOP on the road.</p>
-          </div>
+          !running && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button onClick={load} className="rounded-full bg-mapo px-4 py-2 text-sm font-bold text-charcoal">Load +1</button>
+              <button onClick={startDrive} className="flex-1 rounded-full bg-agodi px-4 py-2 text-sm font-bold text-white">Depart hustle 🛣️</button>
+              <button onClick={() => setPassengers(0)} className="rounded-full bg-white/10 px-4 py-2 text-sm">Reset</button>
+            </div>
+          )
         )}
       </div>
     </div>

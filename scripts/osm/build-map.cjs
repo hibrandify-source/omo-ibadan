@@ -143,7 +143,12 @@ function snap(d) {
 }
 
 function dijkstra(src) {
+  return dijkstraFull(src).dist;
+}
+
+function dijkstraFull(src) {
   const dist = new Map([[src, 0]]);
+  const prev = new Map();
   const done = new Set();
   // simple binary heap
   const heap = [[0, src]];
@@ -181,13 +186,40 @@ function dijkstra(src) {
     done.add(k);
     for (const [n, w] of nodes.get(k).adj) {
       const nd = d + w;
-      if (nd < (dist.get(n) ?? Infinity)) { dist.set(n, nd); push([nd, n]); }
+      if (nd < (dist.get(n) ?? Infinity)) { dist.set(n, nd); prev.set(n, k); push([nd, n]); }
     }
   }
-  return dist;
+  return { dist, prev };
 }
 
 const snaps = districts.map((d) => snap(d));
+
+// ---- micra corridors: real road paths through a chain of stops
+const CORRIDORS = [
+  { id: "mokola-iwo", name: "Mokola → Dugbe → Challenge → Iwo Road", stops: ["mokola", "dugbe", "challenge", "iwo-road"] },
+  { id: "ui-beere", name: "UI Gate → Bodija → Agodi → Beere", stops: ["ui-gate", "bodija", "agodi", "beere"] },
+];
+function shortestPath(fromKey, toKey) {
+  const { dist, prev } = dijkstraFull(fromKey);
+  const path = [];
+  for (let k = toKey; k; k = prev.get(k)) path.unshift(nodes.get(k));
+  return { metres: dist.get(toKey), path };
+}
+const corridors = CORRIDORS.map((c) => {
+  const idx = c.stops.map((id) => districts.findIndex((d) => d.id === id));
+  const legs = [];
+  let pts = [];
+  for (let i = 0; i < idx.length - 1; i++) {
+    const { metres, path } = shortestPath(snaps[idx[i]].k, snaps[idx[i + 1]].k);
+    legs.push(Math.round(metres / 100) / 10);
+    pts = pts.concat(path.map((p) => proj(p.lat, p.lon)));
+  }
+  return { id: c.id, name: c.name, stops: c.stops, legKm: legs, path: simplifyPts(pts, 15).flat() };
+});
+function simplifyPts(pts, tol) {
+  return simplify(pts, tol);
+}
+
 const roadKm = {};
 districts.forEach((a, i) => {
   const dist = dijkstra(snaps[i].k);
@@ -249,6 +281,7 @@ const out = {
   districts,
   landmarks,
   roadKm,
+  corridors,
 };
 const outPath = path.join(__dirname, "..", "..", "lib", "map", "ibadan.json");
 fs.mkdirSync(path.dirname(outPath), { recursive: true });

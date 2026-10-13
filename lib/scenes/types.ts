@@ -18,7 +18,7 @@ export type PropKind =
   | { kind: "pots" } // Mama's soup pots on firewood
   | { kind: "drum"; color: string } // water drum
   | { kind: "chickens"; n: number }
-  | { kind: "car"; car: "micra" | "korope" | "corolla" | "camry" | "jeep"; dir: "S" | "N" | "E" | "W" }
+  | { kind: "car"; car: "micra" | "korope" | "interstate" | "corolla" | "camry" | "jeep"; dir: "S" | "N" | "E" | "W" }
   | { kind: "booth" } // gateman's post
   | { kind: "biggen"; running: boolean } // soundproof house generator
   | { kind: "hedge"; w: number }

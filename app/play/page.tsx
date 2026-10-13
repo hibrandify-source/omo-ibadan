@@ -874,6 +874,12 @@ export default function Home() {
       setDoorOpen(shared);
       return;
     }
+    if (id === "micra-rank") {
+      setTab("hustle");
+      window.scrollTo({ top: 0 });
+      push("🚐 Sani tosses you the keys: \"Load am full before you comot. Micra Rush is on.\"");
+      return;
+    }
     if (id === "help-mama-stall") {
       const part = partOfDay(minuteRef.current);
       if (part !== "morning" && part !== "afternoon") {

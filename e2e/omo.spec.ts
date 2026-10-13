@@ -343,6 +343,19 @@ test.describe("Omo Ibadan E2E", () => {
     await expect(page.getByRole("button", { name: /Buy Oja Oba/ })).toBeVisible();
   });
 
+  test("Iwo Road park: talk to the tout, then join the micra rank", async ({ page }) => {
+    await startGame(page, "ParkWaka");
+    await page.evaluate(() => (window as unknown as { __omo: { goto: (z: string) => void } }).__omo.goto("iwo-road"));
+    await expect(page.getByRole("img", { name: /Iwo Road Park, walkable street/ })).toBeVisible();
+    await sceneMoveTo(page, 26.5, 21.6);
+    await page.getByRole("button", { name: /Talk to Iwo Tout/ }).click();
+    expect((await state(page)).feed[0]).toMatch(/Iwo Tout/);
+    await sceneMoveTo(page, 45, 27.3);
+    await page.getByRole("button", { name: /Join the micra rank/ }).click();
+    expect((await state(page)).tab).toBe("hustle");
+    await expect(page.getByText(/Real Ibadan corridors from OpenStreetMap/)).toBeVisible();
+  });
+
   test("no uncaught errors from load through first hustle", async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (e) => pageErrors.push(e.message));

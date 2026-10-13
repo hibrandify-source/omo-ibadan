@@ -102,6 +102,18 @@ export const CAST: Record<string, PersonSpec> = {
     outfit: { kind: "gown", dress: FABRICS.waxGreen },
     shoes: "#7a4a2b", carry: null,
   },
+  tout: {
+    skin: S[1], height: 1.73, build: 0.95, age: "adult", hair: "lowcut",
+    headwear: { kind: "cap", fabric: { base: "#c9322a", a: "#c9322a", b: "#c9322a", motif: "plain" } },
+    outfit: { kind: "tee-jeans", tee: "#e9b22a", jeans: "#2d3d5a" },
+    shoes: PAL.slipper, carry: null,
+  },
+  vioOfficer: {
+    skin: S[1], height: 1.76, build: 1.1, age: "adult", hair: "lowcut",
+    headwear: { kind: "cap", fabric: { base: "#2f4a2f", a: "#2f4a2f", b: "#2f4a2f", motif: "plain" } },
+    outfit: { kind: "shirt-trousers", shirt: "#c9b98a", trousers: "#2f4a2f" },
+    shoes: "#141210", carry: null,
+  },
   gatemanMusa: {
     skin: S[2], height: 1.74, build: 0.92, age: "adult", hair: "lowcut",
     headwear: { kind: "cap", fabric: { base: "#e9e3d6", a: "#e9e3d6", b: "#e9e3d6", motif: "plain" } },

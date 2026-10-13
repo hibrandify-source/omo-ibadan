@@ -277,6 +277,27 @@ function drawGoods(ctx: Ctx, goods: StallGoods, x: number, y: number, r: () => n
   }
 }
 
+/** A West African dwarf goat, the kind that crosses every Ibadan road. Faces east. */
+export function drawGoat(ctx: Ctx, t = 0, color = "#e9e3d6") {
+  const step = Math.sin(t * 10) * 0.05;
+  groundShadow(ctx, 0, 0, 0.45, 0.15, 0.25);
+  for (const [lx, d] of [[-0.25, step], [0.25, -step]]) {
+    line(ctx, lx + d, -0.42 * K, lx + d * 2, 0, "#3a2c22", 0.05);
+    line(ctx, lx - 0.08 - d, -0.42 * K, lx - 0.08 - d * 2, 0, "#3a2c22", 0.05);
+  }
+  oval(ctx, 0, -0.55 * K, 0.42, 0.2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  oval(ctx, -0.1, -0.6 * K, 0.18, 0.08);
+  ctx.fillStyle = "#3a2c22"; // patch
+  ctx.fill();
+  oval(ctx, 0.42, -0.78 * K, 0.13, 0.11);
+  ctx.fillStyle = color;
+  ctx.fill();
+  line(ctx, 0.44, -0.86 * K, 0.4, -1.0 * K, "#6b5a45", 0.03); // horn
+  line(ctx, -0.4, -0.6 * K, -0.5, -0.72 * K, color, 0.04); // tail
+}
+
 /** A few chickens pecking around. */
 export function drawChickens(ctx: Ctx, n: number, t = 0, seed = 5) {
   const r = rng(seed);
