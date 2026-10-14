@@ -1,73 +1,60 @@
 import Link from "next/link";
 import AdSlot from "@/components/AdSlot";
-import { HOODS, TITLE_LADDER } from "@/lib/game";
+import HeroScene from "@/components/landing/HeroScene";
+import Figures from "@/components/landing/Figures";
+import MapPreview from "@/components/landing/MapPreview";
+import { BACKGROUNDS, HOODS, TITLE_LADDER, naira } from "@/lib/game";
+import { CITY } from "@/lib/map/ibadan";
 
-// Landing hero panorama: hand-drawn SVG Ibadan skyline —
-// brown roofs, Mapo Hill + hall, Cocoa House tower, amber dusk.
-function Skyline() {
-  const roofs = [
-    { x: 0, w: 46, h: 26 }, { x: 40, w: 52, h: 34 }, { x: 86, w: 44, h: 24 },
-    { x: 124, w: 56, h: 36 }, { x: 174, w: 48, h: 28 }, { x: 216, w: 54, h: 34 },
-    { x: 264, w: 46, h: 26 }, { x: 304, w: 56, h: 36 }, { x: 354, w: 48, h: 28 },
-    { x: 396, w: 52, h: 33 }, { x: 442, w: 48, h: 26 }, { x: 484, w: 56, h: 35 },
-    { x: 534, w: 46, h: 27 }, { x: 574, w: 52, h: 34 },
-  ];
-  return (
-    <svg viewBox="0 0 626 240" className="block h-auto w-full" role="img" aria-label="Ibadan brown roof skyline at dusk">
-      <defs>
-        <linearGradient id="dusk" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#241610" />
-          <stop offset="55%" stopColor="#7A4A2B" />
-          <stop offset="82%" stopColor="#E8A020" />
-          <stop offset="100%" stopColor="#F5D9A8" />
-        </linearGradient>
-      </defs>
-      <rect x="0" y="0" width="626" height="240" fill="url(#dusk)" />
-      <circle cx="500" cy="150" r="26" fill="#FFE9B8" />
-      <circle cx="500" cy="150" r="40" fill="#FFE9B8" opacity="0.25" />
-      {/* Mapo hill + hall */}
-      <ellipse cx="120" cy="205" rx="110" ry="42" fill="#3a2318" />
-      <rect x="88" y="120" width="64" height="30" fill="#EDE3D2" />
-      <polygon points="82,120 120,96 158,120" fill="#B33A3A" />
-      <rect x="116" y="132" width="8" height="18" fill="#5c4232" />
-      {/* Cocoa House tower */}
-      <rect x="440" y="40" width="44" height="150" fill="#6b4a2e" stroke="#2b1a12" strokeWidth="2" />
-      {Array.from({ length: 8 }).map((_, i) => (
-        <g key={i}>
-          {Array.from({ length: 4 }).map((_, j) => (
-            <rect key={j} x={446 + j * 10} y={50 + i * 17} width="7" height="9" fill="#FFE9B8" opacity={i % 3 === 0 ? 0.95 : 0.45} />
-          ))}
-        </g>
-      ))}
-      <rect x="434" y="30" width="56" height="10" fill="#2b1a12" />
-      {/* brown roofs */}
-      {roofs.map((r, i) => (
-        <g key={i}>
-          <rect x={r.x} y={190 - r.h} width={r.w} height={r.h + 50} fill={i % 2 ? "#6b3f27" : "#7A4A2B"} />
-          <polygon points={`${r.x - 4},${190 - r.h} ${r.x + r.w / 2},${176 - r.h} ${r.x + r.w + 4},${190 - r.h}`} fill="#3f2517" />
-          {Array.from({ length: Math.floor(r.w / 14) }).map((_, k) => (
-            <rect key={k} x={r.x + 6 + k * 14} y={198 - r.h} width="5" height="7" fill="#FFE9B8" opacity="0.75" />
-          ))}
-        </g>
-      ))}
-      {/* micra silhouette on road */}
-      <rect x="0" y="228" width="626" height="12" fill="#1C1917" />
-      <g transform="translate(300,222)">
-        <path d="M-22 6 L-22 -2 Q-22 -5 -18 -5.5 L-11 -6 L-5.5 -12 L7 -12 L12.5 -6 L19.5 -5.5 Q22.5 -5 22.5 -1 L22.5 5 Q22.5 7 19.5 7 L-19 7 Q-22 7 -22 6 Z" fill="#5A1F2B" stroke="#0c0c0e" />
-        <path d="M-18 -5.5 L-11 -6 L-5.5 -12 L7 -12 L12.5 -6 L19.5 -5.5 L19.5 -3.4 L-18 -3.4 Z" fill="#F5C518" />
-        <circle cx="-12" cy="7" r="4.5" fill="#0c0c0e" /><circle cx="12" cy="7" r="4.5" fill="#0c0c0e" />
-      </g>
-    </svg>
-  );
-}
+const LOBE = BACKGROUNDS["omo-iya-lobe"];
+const ALW = BACKGROUNDS.alowonle;
+const DISTRICTS = CITY.districts.length;
+
+const LIVES = [
+  {
+    bg: LOBE,
+    who: [{ cast: "mamaBisi", dir: "S" as const }, { cast: "tunde", dir: "S" as const }],
+    ground: "#c98a5c",
+    figures: "Mama Bisi and your brother Tunde in the Beere compound",
+    start: `${naira(LOBE.pocket)} in your pocket`,
+    odds: "8 in 10 lives",
+  },
+  {
+    bg: ALW,
+    who: [{ cast: "mummy", dir: "S" as const }, { cast: "alowonleGirl", dir: "S" as const }, { cast: "gatemanMusa", dir: "S" as const }],
+    ground: "#b9b0a0",
+    figures: "Mummy, you, and Musa the gateman at the Old Bodija house",
+    start: `${naira(ALW.pocket)}, a car, and ${naira(ALW.allowancePerWeek)} a week from Daddy (with conditions)`,
+    odds: "2 in 10 lives",
+  },
+];
+
+const STORY = [
+  { age: "18", title: "School leaver", text: "WAEC done. The JAMB form comes out in January: register, read past questions, sit the exam at a CBT centre in Agbowo." },
+  { age: "19", title: "UI, the Poly, or the market", text: "Score 240 for UI, 160 for the Poly, or choose the hustle. Fees every session, lectures to attend, carry-overs if you don't." },
+  { age: "23", title: "NYSC", text: "Your call-up letter could say Oyo or Borno. Camp, a place of primary assignment, ₦77,000 a month, then passing out." },
+  { age: "24+", title: "Work and your own place", text: "Twenty-five careers from micra driver to banker. Rent a self-contain, then a flat, then a duplex in Jericho." },
+  { age: "Love", title: "Friends, love, family", text: "Ada at the UI gate, Tobi at the Poly, Oga Emeka at Gbagi. Ask out, introduction, wedding, naming ceremony." },
+  { age: "28–38", title: "Your legacy", text: "Close the story and the city sings your oriki: what you built, who you loved, the name you left in the market." },
+];
+
+const FEATURES = [
+  { e: "🚶", t: "Walk every street", d: `${DISTRICTS} districts drawn street by street: Mapo Hall, Cocoa House, Bodija market, UI gate, Iwo Road park, Agodi Gardens, the airport at Alakia.` },
+  { e: "🚐", t: "Micra Rush", d: "Drive real corridors from OpenStreetMap. Stay in the kerb lane, stop in the bay, load passengers, dodge okadas and VIO." },
+  { e: "👪", t: "Family time", d: "Serve the lunch crowd at Mama's stall or sit in on Daddy's site meeting. Their trust changes everything." },
+  { e: "💃", t: "Owambe", d: "Aso-ebi, the Fuji band, the celebrant on the floor. Spray your money and dance; the money boy will gather it." },
+  { e: "📱", t: "Fọ́nu Mi", d: "Texts from Mama, bank alerts, JAMB, IBEDC light-outs and your partner, arriving through the day." },
+  { e: "⏩", t: "Live it in seasons", d: "Play day by day, or move on three months at a time with a focus: work, school, family or love." },
+];
 
 const FAQS = [
-  { q: "E free?", a: "Yes. Omo Ibadan is free in your browser — phone or laptop, no download. Optional flex extras arrive in V2." },
-  { q: "Do I need to download anything?", a: "No. Open /play, pick your @name, draw the life you're born into, and enter Ibadan in under a minute." },
-  { q: "Which Ibadan areas are inside?", a: "15 nodes at launch: UI/Agbowo, Sango-Poly, Bodija, Mokola, Dugbe/Cocoa House, Mapo/Beere, Oja Oba, Oje, Agodi, Challenge, Molete, Ring Road, Iwo Road/Gbagi, Eleyele/Jericho." },
-  { q: "How do Ola and Iwa work?", a: "Ola is wealth — hustle micra, trade market, pass exams. Iwa is character — keep promises, pay rent, send money home, no overload cheating. Titles need both." },
+  { q: "E free?", a: "Yes. Omo Ibadan is free in your browser, on your phone or laptop. No download." },
+  { q: "Do I need to download anything?", a: "No. Open Play, pick your @name, draw the life you're born into, and you're in Ibadan in under a minute." },
+  { q: "Can I choose to be born rich?", a: "No, and that's the point. Like real life, the lottery decides: most people are born Omo Iya Lobe. Both lives can end well, or badly." },
+  { q: "Which Ibadan areas are inside?", a: `All ${DISTRICTS}: Beere, Oja'ba, Mapo, Bodija, Old Bodija, UI gate, Agbowo, Samonda, Sango, Ojoo, Moniya, Mokola, Dugbe, Agodi, Eleyele, Jericho, Ring Road, Challenge, Molete, Oje, Iwo Road, Akobo, Alakia, Sabo, Gbagi, Agbeni and Aleshinloye. Distances come from the real road network.` },
+  { q: "How do Ola and Iwa work?", a: "Ola is wealth: hustle, trade, work your way up. Iwa is character: keep promises, pay rent, send money home, don't overload your micra. Titles need both." },
+  { q: "Do I need an account?", a: "No. Your game saves on your phone. Sign in with your email if you want a cloud save that follows you to another device." },
   { q: "Is the naira real money?", a: "No. All naira is virtual, for fun and ranking only. It cannot be withdrawn or cashed out." },
-  { q: "Will it run on my low-end phone?", a: "That's the plan — our performance floor is 2GB RAM Android Go, with a quality toggle that cuts effects before it cuts gameplay." },
 ];
 
 export default function Landing() {
@@ -75,15 +62,15 @@ export default function Landing() {
     <main>
       {/* HERO */}
       <section className="relative overflow-hidden bg-charcoal text-cream">
-        <Skyline />
-        <div className="mx-auto max-w-5xl px-4 pb-10 pt-8 sm:pt-12">
+        <HeroScene />
+        <div className="mx-auto max-w-5xl px-4 pb-10 pt-8 sm:pt-10">
           <div className="text-[11px] font-extrabold tracking-[0.25em] text-mapo">🇳🇬 IBADAN · FREE IN YOUR BROWSER</div>
           <h1 className="font-display mt-3 max-w-2xl text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
             Live your <span className="text-mapo">Ibadan</span> life.
           </h1>
           <p className="mt-4 max-w-xl text-base text-cream/75 sm:text-lg">
-            Hustle micra from Mokola to Iwo Road, haggle Bodija market, survive IBEDC nights,
-            chop Amala Skye, rep your hood — and become Mogaji with both wealth <i>and</i> character.
+            Start at 18 under the brown roofs of Beere, or behind the gate of a Bodija mansion. Hustle micra on real roads,
+            write JAMB, serve your NYSC, find love, raise a family, and leave a name the city remembers.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/play" className="rounded-full bg-gradient-to-r from-mapo to-[#f5c04a] px-7 py-3 font-display font-extrabold text-charcoal shadow-xl">
@@ -95,24 +82,66 @@ export default function Landing() {
           </div>
           <div className="mt-5 flex flex-wrap gap-2 text-xs text-cream/55">
             <span className="rounded-full bg-white/10 px-3 py-1">✓ No download</span>
-            <span className="rounded-full bg-white/10 px-3 py-1">✓ 2GB-Android friendly</span>
+            <span className="rounded-full bg-white/10 px-3 py-1">📱 Made for phones</span>
             <span className="rounded-full bg-white/10 px-3 py-1">🎲 Born poor or born rich</span>
           </div>
         </div>
       </section>
 
-      {/* HOW IT WORKS */}
+      {/* TWO LIVES */}
       <section className="mx-auto max-w-5xl px-4 py-12">
-        <h2 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Hustle. Chop. Light. Flex. Rank.</h2>
-        <p className="mt-2 max-w-xl text-sm text-charcoal/60">One loop, every day in Ibadan. Two lives — Omo Iya Lobe or Alowonle — fifteen areas, two meters that matter.</p>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {[
-            { e: "🚐", t: "Hustle", d: "Ride or drive micra. Load fast at Iwo Road, dodge VIO, stop inside the box." },
-            { e: "🧺", t: "Trade", d: "Buy low Oja Oba, haggle hard, sell high Bodija. Read customer mood." },
-            { e: "📝", t: "Brain", d: "UI Exam Survival — proverbs, history, street sense. Pass to unlock jobs." },
-            { e: "⚡", t: "Survive", d: "NEPA weeks, rent knocks, rain-locked Ring Road. Keep reserves, stay Omoluabi." },
-            { e: "👑", t: "Rank", d: "Climb Omo Adugbo → Mogaji → Olubadan. Ola AND Iwa required." },
-          ].map((c) => (
+        <h2 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Two lives, one city.</h2>
+        <p className="mt-2 max-w-xl text-sm text-charcoal/60">You don&apos;t choose where you&apos;re born. The lottery does. Neither life is easy mode.</p>
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {LIVES.map((l) => (
+            <div key={l.bg.id} className="overflow-hidden rounded-3xl bg-white shadow-[0_16px_40px_-20px_rgba(122,74,43,0.35)] ring-1 ring-roof/10">
+              <Figures who={l.who} ground={l.ground} label={l.figures} />
+              <div className="p-5">
+                <div className="flex items-baseline justify-between gap-2">
+                  <div className="font-display text-xl font-extrabold">{l.bg.name}</div>
+                  <span className="rounded-full bg-cream px-2.5 py-0.5 text-[11px] font-bold text-charcoal/60 ring-1 ring-roof/10">{l.odds}</span>
+                </div>
+                <div className="text-xs font-bold text-roof">{l.bg.meaning} · {l.bg.homeLabel}</div>
+                <p className="mt-2 text-sm leading-relaxed text-charcoal/70">{l.bg.tagline}</p>
+                <p className="mt-2 text-xs font-semibold text-charcoal/60">You start with {l.start}.</p>
+                <ul className="mt-3 space-y-1 text-[13px] text-charcoal/70">
+                  {l.bg.strengths.slice(0, 2).map((s) => <li key={s}>✅ {s}</li>)}
+                  {l.bg.pressures.slice(0, 2).map((s) => <li key={s}>⚠️ {s}</li>)}
+                </ul>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* THE STORY */}
+      <section className="border-y border-roof/10 bg-white">
+        <div className="mx-auto max-w-5xl px-4 py-12">
+          <h2 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Your story, 18 to 38.</h2>
+          <p className="mt-2 max-w-xl text-sm text-charcoal/60">Twenty years of an Ibadan life. Every choice shows up later.</p>
+          <ol className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {STORY.map((s) => (
+              <li key={s.title} className="rounded-3xl bg-cream p-4 ring-1 ring-roof/10">
+                <div className="text-[11px] font-extrabold tracking-widest text-roof">{s.age}</div>
+                <div className="font-display mt-0.5 font-extrabold">{s.title}</div>
+                <p className="mt-1 text-[13px] leading-relaxed text-charcoal/65">{s.text}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      {/* REAL IBADAN */}
+      <section className="mx-auto max-w-5xl px-4 py-12">
+        <h2 className="font-display text-2xl font-extrabold tracking-tight sm:text-3xl">Real Ibadan, street by street.</h2>
+        <p className="mt-2 max-w-xl text-sm text-charcoal/60">
+          The map is built from OpenStreetMap: real roads, real distances, real fares. {DISTRICTS} districts, each one a street you can walk.
+        </p>
+        <div className="mt-5 overflow-hidden rounded-3xl bg-white p-3 ring-1 ring-roof/10 sm:p-4">
+          <MapPreview />
+        </div>
+        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map((c) => (
             <div key={c.t} className="rounded-3xl bg-white p-4 shadow-[0_16px_40px_-20px_rgba(122,74,43,0.35)] ring-1 ring-roof/10">
               <div className="text-2xl">{c.e}</div>
               <div className="font-display mt-1 font-extrabold">{c.t}</div>
@@ -169,7 +198,7 @@ export default function Landing() {
           <AdSlot slot="landing-faq" />
           <div className="mt-8 rounded-3xl bg-charcoal p-6 text-center text-cream sm:p-8">
             <div className="font-display text-xl font-extrabold sm:text-2xl">Ibadan dey wait for you.</div>
-            <p className="mt-1 text-sm text-cream/60">Pick your look, your hood, your @name. You dey inside in one minute.</p>
+            <p className="mt-1 text-sm text-cream/60">Pick your @name, draw your life, and you&apos;re inside in one minute.</p>
             <Link href="/play" className="mt-4 inline-block rounded-full bg-gradient-to-r from-mapo to-[#f5c04a] px-8 py-3 font-display font-extrabold text-charcoal">Play free now →</Link>
           </div>
         </div>
