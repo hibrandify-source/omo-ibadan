@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import AdSlot from "@/components/AdSlot";
 import { HOODS } from "@/lib/game";
+import { SAVE_KEY } from "@/lib/engine/save";
+import { walkWeekKey } from "@/lib/walk";
 
 // Opening snapshot (also the SQL seed). Live totals replace these
 // once the backend is configured — same numbers, real board.
@@ -16,6 +18,16 @@ export default function Leaderboard() {
   const [live, setLive] = useState(false);
   const [walkers, setWalkers] = useState<{ name: string; steps: number }[]>([]);
   const [walkLive, setWalkLive] = useState(false);
+  // this phone's walks this week, from the local save (signed in or not)
+  const [mine, setMine] = useState<{ name: string; steps: number } | null>(null);
+
+  useEffect(() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(SAVE_KEY) ?? "null");
+      const w = s?.walkWeek;
+      if (w && w.key === walkWeekKey() && w.steps > 0) setMine({ name: String(s.username || "omo"), steps: Number(w.steps) });
+    } catch {}
+  }, []);
 
   useEffect(() => {
     if (!(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) return;
@@ -97,9 +109,14 @@ export default function Leaderboard() {
         </div>
         <p className="mt-1 text-xs text-cream/55">Real GPS steps. Highest legs take the crown — resets Monday (Lagos).</p>
         <div className="mt-3 space-y-2">
+          {mine && !walkers.some((w) => w.name === mine.name) && (
+            <p className="rounded-xl bg-white/10 px-3 py-2 text-xs text-cream/75">
+              On this phone: <b>@{mine.name} · {mine.steps.toLocaleString()} steps</b> this week, not on the board yet. They go up the next time you open the game online.
+            </p>
+          )}
           {walkers.length === 0 && (
             <p className="text-sm text-cream/55">
-              No walks yet this week. Open <Link href="/play" className="font-bold text-mapo">/play → Rìn</Link>, waka am, and claim this board.
+              No walks on the board yet this week. Open <Link href="/play" className="font-bold text-mapo">/play → Rìn</Link>, waka am, and claim this board.
             </p>
           )}
           {walkers.map((w, i) => (

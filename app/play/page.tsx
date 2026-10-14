@@ -289,7 +289,9 @@ export default function Home() {
   });
   // take-a-walk: real GPS steps
   const [walkLive, setWalkLive] = useState({ active: false, steps: 0 });
-  const [walkWeek, setWalkWeek] = useState({ key: "", steps: 0 });
+  const [walkWeek, setWalkWeek] = useState({ key: "", steps: 0, posted: 0 });
+  const walkWeekRef = useRef(walkWeek);
+  walkWeekRef.current = walkWeek;
   const [walkDay, setWalkDay] = useState({ date: "", steps: 0 });
 
   const onWalkComplete = (r: { steps: number; km: number; partySize: number }) => {
@@ -309,7 +311,7 @@ export default function Home() {
     setWalkDay({ date: today, steps: countedToday + counted });
     if (counted >= 2000) jot(`Day ${day}: walked ${counted.toLocaleString()} steps (${r.km.toFixed(2)} km). Legs of steel.`);
     const wk = walkWeekKey();
-    setWalkWeek((w) => ({ key: wk, steps: (w.key === wk ? w.steps : 0) + counted }));
+    setWalkWeek((w) => (w.key === wk ? { ...w, steps: w.steps + counted } : { key: wk, steps: counted, posted: 0 }));
     ensureAudio();
     coin();
     push(
@@ -317,22 +319,51 @@ export default function Home() {
         ? `🚶 Walk logged (${r.km.toFixed(2)} km) — daily 20k cap reached. Legs don try.`
         : `🚶 Waka done! ${counted.toLocaleString()} steps (${r.km.toFixed(2)} km)${r.partySize >= 2 ? ` · party of ${r.partySize} +5%` : ""} → +₦${olaGain}${iwaGain > 0 ? `, Iwa +${iwaGain}` : ""}, −${energyCost}⚡.`
     );
-    // cloud: weekly personal board (authed only)
-    if (authUser && counted > 0) {
-      (async () => {
-        const { getSupabase } = await import("@/lib/supabase");
-        const sb = getSupabase();
-        if (!sb) return;
-        try {
-          await sb.rpc("add_walk_steps", {
-            p_week: wk,
-            p_steps: Math.min(counted, DAILY_STEP_CAP),
-            p_name: (username || "omo").slice(0, 24),
-          });
-        } catch {}
-      })();
+    if (counted > 0) window.setTimeout(() => postWalks(true), 0);
+  };
+
+  // The weekly walkers board: every phone's walks count, signed in or not. A phone
+  // without an account gets a quiet anonymous ID (no email) so the board can keep
+  // its own row; whatever of this week's steps hasn't reached the board yet is sent.
+  const postingWalks = useRef(false);
+  const postWalks = async (announce: boolean) => {
+    if (!backendOn() || postingWalks.current) return;
+    const w = walkWeekRef.current;
+    const wk = walkWeekKey();
+    const unposted = w.key === wk ? Math.max(0, w.steps - w.posted) : 0;
+    if (unposted <= 0) return;
+    postingWalks.current = true;
+    try {
+      const { getSupabase } = await import("@/lib/supabase");
+      const sb = getSupabase();
+      if (!sb) return;
+      const { data } = await sb.auth.getSession();
+      if (!data.session) {
+        const { error } = await sb.auth.signInAnonymously();
+        if (error) {
+          if (announce) push(`📊 The walkers board is offline right now (${error.message}). Your steps still count here.`);
+          return;
+        }
+      }
+      const send = Math.min(unposted, DAILY_STEP_CAP);
+      const { error } = await sb.rpc("add_walk_steps", { p_week: wk, p_steps: send, p_name: (username || "omo").slice(0, 24) });
+      if (error) {
+        if (announce) push(`📊 Couldn't add this walk to the walkers board: ${error.message}`);
+        return;
+      }
+      setWalkWeek((cur) => (cur.key === wk ? { ...cur, posted: cur.posted + send } : cur));
+      if (announce) push(`📊 ${send.toLocaleString()} steps added to this week's walkers board.`);
+    } catch {
+      if (announce) push("📊 Couldn't reach the walkers board. Check your network; your steps still count here.");
+    } finally {
+      postingWalks.current = false;
     }
   };
+  // steps walked earlier this week (or offline) catch up when the game opens
+  useEffect(() => {
+    if (hydrated && started) void postWalks(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, started]);
   const [shopGreetDay, setShopGreetDay] = useState(0);
   const [shopEntry, setShopEntry] = useState<ShopKind | null>(null);
   // in-world doors + NPC memory + journal
@@ -508,7 +539,7 @@ export default function Home() {
       sb.auth.getSession().then(({ data }) => {
         if (dead) return;
         const u = data.session?.user;
-        if (u) setAuthUser({ id: u.id, email: u.email ?? "" });
+        if (u && !u.is_anonymous) setAuthUser({ id: u.id, email: u.email ?? "" });
         const url = new URL(window.location.href);
         if (url.searchParams.has("code")) {
           url.searchParams.delete("code");
@@ -517,7 +548,7 @@ export default function Home() {
       });
       const { data: sub } = sb.auth.onAuthStateChange((_ev, session) => {
         const u = session?.user;
-        setAuthUser(u ? { id: u.id, email: u.email ?? "" } : null);
+        setAuthUser(u && !u.is_anonymous ? { id: u.id, email: u.email ?? "" } : null);
         if (!u) setCloudReady(false);
       });
       unsub = () => sub.subscription.unsubscribe();
@@ -2174,6 +2205,11 @@ export default function Home() {
                 </div>
                 <p className="mt-1 text-xs text-charcoal/55">
                   100 Ola per 1,000 steps · +3 Iwa on 2,000+ days · 20k steps/day counted · top walkers crowned on the leaderboard.
+                </p>
+                <p className="mt-2 rounded-xl bg-agodi/10 px-3 py-2 text-xs font-semibold text-agodi">
+                  {walkWeek.key === walkWeekKey() && walkWeek.steps > walkWeek.posted
+                    ? `${(walkWeek.steps - walkWeek.posted).toLocaleString()} steps waiting to reach the weekly board as @${username || "omo"}. They go up when you're online.`
+                    : `Your finished walks go on the weekly board as @${username || "omo"}. Tap “Finish + claim” to count a walk.`}
                 </p>
                 <a href="/leaderboard" className="mt-2 inline-block text-xs font-bold text-roof">Walkers board →</a>
               </div>

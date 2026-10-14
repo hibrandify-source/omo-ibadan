@@ -88,3 +88,14 @@ describe("Fọ́nu Mi", () => {
     expect(far.find((m) => m.from === "Ada")?.text).toMatch(/quiet/);
   });
 });
+
+describe("walkers board bookkeeping", () => {
+  it("the save remembers how much of this week's walking reached the board", async () => {
+    const { migrateSave, defaultSave } = await import("@/lib/engine/save");
+    expect(defaultSave().walkWeek.posted).toBe(0);
+    const old = migrateSave({ ...defaultSave(), walkWeek: { key: "2027-01-04", steps: 80 } })!;
+    expect(old.walkWeek).toEqual({ key: "2027-01-04", steps: 80, posted: 0 }); // older saves: nothing posted yet, so it catches up
+    const kept = migrateSave({ ...defaultSave(), walkWeek: { key: "2027-01-04", steps: 900, posted: 500 } })!;
+    expect(kept.walkWeek.posted).toBe(500);
+  });
+});

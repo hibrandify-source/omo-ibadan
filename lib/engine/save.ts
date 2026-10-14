@@ -101,7 +101,8 @@ export interface SaveData {
   careerLevels: Record<string, number>;
   lastShiftDay: number;
   // real-world walking
-  walkWeek: { key: string; steps: number };
+  /** `posted`: how many of this week's steps have reached the walkers board */
+  walkWeek: { key: string; steps: number; posted: number };
   walkDay: { date: string; steps: number };
   // the long life: school, people, milestones (lib/game/life)
   life: LifeState;
@@ -167,7 +168,7 @@ export function defaultSave(): SaveData {
     careerId: null,
     careerLevels: {},
     lastShiftDay: 0,
-    walkWeek: { key: "", steps: 0 },
+    walkWeek: { key: "", steps: 0, posted: 0 },
     walkDay: { date: "", steps: 0 },
     life: defaultLife(),
   };
@@ -313,7 +314,7 @@ export function migrateSave(input: unknown): SaveData | null {
     careerId: strOrNull(s.careerId, null),
     careerLevels: numRecord(s.careerLevels),
     lastShiftDay: num(s.lastShiftDay, 0),
-    walkWeek: { key: str(walkWeek.key, ""), steps: num(walkWeek.steps, 0) },
+    walkWeek: { key: str(walkWeek.key, ""), steps: num(walkWeek.steps, 0), posted: num(walkWeek.posted, 0) },
     walkDay: { date: str(walkDay.date, ""), steps: num(walkDay.steps, 0) },
     life: migrateLife(s.life),
   };
