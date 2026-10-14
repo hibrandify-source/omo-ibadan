@@ -14,3 +14,4 @@ export * from "./groceries";
 export * from "./radio";
 export * from "./life";
 export * from "./storylets";
+export * from "./family";

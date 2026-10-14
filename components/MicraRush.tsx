@@ -90,16 +90,29 @@ export default function MicraRush({
     setLog(`💥 ${kind} bash! -${naira(TP.bashSettle)}. Change lane early.`);
   };
 
-  const onBay = (ok: boolean, name: string) => {
-    if (mode === "ride") return;
+  /** A clean stop: some get down, the people waiting climb in (up to 6 aboard). Returns how many board. */
+  const onBay = (ok: boolean, name: string): number => {
+    if (mode === "ride") return 0;
     if (ok) {
       const fare = passengers * TP.cleanStopPerPassenger;
+      const down = Math.min(passengers, 1 + (Math.random() < 0.5 ? 1 : 0));
+      const board = Math.min(3, 6 - (passengers - down));
+      const aboard = passengers - down + board;
+      setPassengers(aboard);
       onEarn(fare, 2, `🟢 Clean stop at ${name}! Collected ${naira(fare)}, Iwa +2.`);
-      setLog(`🟢 Inside the ${name} bay! +${naira(fare)}. Conductor: "O wa o!"`);
+      setLog(`🟢 ${name}: ${down} got down, ${board} climbed in (${aboard}/6). +${naira(fare)}. Conductor: "O wa o!"${aboard > 4 ? " ⚠️ Overloaded: watch for VIO." : ""}`);
+      return board;
     } else {
       onEarn(0, -1, `Missed the ${name} bay: passengers no pay. Iwa -1.`);
       setLog(`🔴 Missed ${name}! Kerb lane, then STOP inside the yellow box.`);
     }
+    return 0;
+  };
+
+  const onStopMiss = (why: "lane" | "early", dist: number) => {
+    setLog(why === "lane"
+      ? "✋ Move to the kerb lane (▼) first. Passengers wait at the roadside."
+      : `✋ Not yet: the next bay is ${dist} m ahead. Stop inside the yellow box.`);
   };
 
   const onFinish = () => {
@@ -166,6 +179,8 @@ export default function MicraRush({
             onBay={onBay}
             onFinish={onFinish}
             onHonk={setLog}
+            onStopMiss={onStopMiss}
+            seats={mode === "drive" ? passengers : undefined}
           />
         )}
 

@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import type { NpcSms } from "@/lib/game";
+export interface PhoneLine { id: string; from: string; text: string; time?: string }
 
-export default function Nokia3310({ sms }: { sms: NpcSms[] }) {
+export default function Nokia3310({ sms, clock }: { sms: PhoneLine[]; clock: string }) {
   const [sel, setSel] = useState(0);
   const [buzz, setBuzz] = useState(false);
 
@@ -18,7 +18,7 @@ export default function Nokia3310({ sms }: { sms: NpcSms[] }) {
         className={`w-[280px] rounded-[36px] bg-gradient-to-b from-[#2b3a4a] via-[#1d2733] to-[#10161d] p-3 shadow-[0_24px_60px_-16px_rgba(0,0,0,0.55)] ring-1 ring-white/10 transition-transform ${
           buzz ? "animate-[nokiaBuzz_0.4s_ease]" : ""
         }`}
-        role="phone"
+        role="group"
         aria-label="Fonu Mi Nokia 3310"
       >
         {/* earpiece + brand */}
@@ -40,9 +40,10 @@ export default function Nokia3310({ sms }: { sms: NpcSms[] }) {
             <div className="flex items-center justify-between font-mono text-[10px] font-bold text-[#1d260f]">
               <span>📶 🔋</span>
               <span>FỌ́NU MI</span>
-              <span>6:00pm</span>
+              <span>{clock.replace(" ", "")}</span>
             </div>
-            <div className="mt-1 space-y-1.5 overflow-y-auto font-mono text-[11px] leading-tight text-[#1a240e]">
+            {sms.length === 0 && <div className="mt-6 text-center font-mono text-[11px] text-[#1a240e]/70">No messages yet today.</div>}
+            <div className="mt-1 h-[196px] space-y-1.5 overflow-y-auto font-mono text-[11px] leading-tight text-[#1a240e]">
               {sms.map((s, i) => (
                 <button
                   key={s.id}
@@ -56,8 +57,8 @@ export default function Nokia3310({ sms }: { sms: NpcSms[] }) {
                       : "bg-[#b3bd7f]/60"
                   }`}
                 >
-                  <div className="text-[9px] font-bold opacity-80">{s.from}</div>
-                  <div className="line-clamp-2">{s.text}</div>
+                  <div className="flex justify-between text-[9px] font-bold opacity-80"><span>{s.from}</span>{s.time && <span>{s.time}</span>}</div>
+                  <div className={sel === i ? "" : "line-clamp-2"}>{s.text}</div>
                 </button>
               ))}
             </div>

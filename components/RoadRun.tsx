@@ -13,6 +13,7 @@ import { drawGoat } from "@/lib/art/props";
 import { drawPerson } from "@/lib/art/people";
 import { CAST } from "@/lib/art/cast";
 import { CARS, drawCar, drawKeke, drawOkada } from "@/lib/art/vehicles";
+import { horn } from "@/lib/sound";
 import {
   autopilotInput, createDrive, pointOnPath, signalRed, stepDrive,
   type Corridor, type DriveState, type HazardKind,
@@ -51,7 +52,7 @@ type Roadside =
   | { kind: "building"; x: number; spec: BuildingSpec; template: number }
   | { kind: "tree" | "palm" | "pole" | "umbrella"; x: number; y: number; seed: number }
   | { kind: "stopsign"; x: number; y: number; text: string }
-  | { kind: "person"; x: number; y: number; who: string; dir: "S" | "N" | "E" | "W" };
+  | { kind: "person"; x: number; y: number; who: string; dir: "S" | "N" | "E" | "W"; bay?: number; queue?: number };
 
 export default function RoadRun({
   corridor,
@@ -64,6 +65,8 @@ export default function RoadRun({
   onBay,
   onFinish,
   onHonk,
+  onStopMiss,
+  seats,
 }: {
   corridor: Corridor;
   stopNames: string[];
@@ -72,17 +75,23 @@ export default function RoadRun({
   weather: "clear" | "rain";
   night: boolean;
   onHazard: (kind: HazardKind) => void;
-  onBay: (ok: boolean, name: string) => void;
+  /** returns how many waiting passengers climb in (drawn walking to the micra) */
+  onBay: (ok: boolean, name: string) => number | void;
   onFinish: () => void;
   onHonk: (msg: string) => void;
+  onStopMiss?: (why: "lane" | "early", dist: number) => void;
+  /** passengers aboard, for the HUD */
+  seats?: number;
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const cvRef = useRef<HTMLCanvasElement>(null);
   const miniRef = useRef<HTMLCanvasElement>(null);
   const sim = useRef<DriveState | null>(null);
   const input = useRef({ gas: false, brake: false, laneTarget: 0 as 0 | 1, stop: false, honk: false });
-  const cb = useRef({ onHazard, onBay, onFinish, onHonk });
-  cb.current = { onHazard, onBay, onFinish, onHonk };
+  const cb = useRef({ onHazard, onBay, onFinish, onHonk, onStopMiss });
+  cb.current = { onHazard, onBay, onFinish, onHonk, onStopMiss };
+  // bay index → how many of its waiting people board
+  const boarding = useRef<Record<number, number>>({});
   const [hud, setHud] = useState({ next: "", dist: 0, kmh: 0 });
 
   // everything along the road, generated once per run
@@ -115,10 +124,10 @@ export default function RoadRun({
       const roll = r();
       out.push({ kind: roll < 0.3 ? "tree" : roll < 0.45 ? "palm" : roll < 0.7 ? "pole" : "umbrella", x, y: 27.6, seed: Math.floor(r() * 1e5) });
     }
-    for (const b of s.bays) {
+    s.bays.forEach((b, bi) => {
       out.push({ kind: "stopsign", x: b.x + 5, y: 27.4, text: b.name });
-      for (let i = 0; i < 3; i++) out.push({ kind: "person", x: b.x - 3 + i * 2.2, y: 26.6 + r() * 0.8, who: PEOPLE[Math.floor(r() * PEOPLE.length)], dir: "S" });
-    }
+      for (let i = 0; i < 3; i++) out.push({ kind: "person", x: b.x - 3 + i * 2.2, y: 26.6 + r() * 0.8, who: PEOPLE[Math.floor(r() * PEOPLE.length)], dir: "N", bay: bi, queue: i });
+    });
     for (let x = 10; x < s.length; x += 25 + r() * 40) out.push({ kind: "person", x, y: 10.2, who: PEOPLE[Math.floor(r() * PEOPLE.length)], dir: r() < 0.5 ? "E" : "W" });
     return out;
   }, [corridor, stopNames, autopilot, seed]);
@@ -126,6 +135,7 @@ export default function RoadRun({
   useEffect(() => {
     sim.current = createDrive(corridor, stopNames, { autopilot, seed });
     input.current = { gas: false, brake: false, laneTarget: 0, stop: false, honk: false };
+    boarding.current = {};
   }, [corridor, stopNames, autopilot, seed]);
 
   // keyboard
@@ -140,7 +150,7 @@ export default function RoadRun({
       else if (k === "ArrowRight" || k === "d" || k === "g") input.current.gas = down;
       else if (k === "ArrowLeft" || k === "a" || k === "b") input.current.brake = down;
       else if (k === " ") { if (down) input.current.stop = true; }
-      else if (k === "h") { if (down) input.current.honk = true; }
+      else if (k === "h") { if (down && !e.repeat) { input.current.honk = true; horn(); } }
       else return;
       e.preventDefault();
     };
@@ -194,7 +204,12 @@ export default function RoadRun({
       }
       for (const e of events) {
         if (e.type === "hazard") cb.current.onHazard(e.kind);
-        else if (e.type === "bay") cb.current.onBay(e.ok, e.name);
+        else if (e.type === "bay") {
+          const n = cb.current.onBay(e.ok, e.name);
+          const bi = s.bays.findIndex((b) => b.name === e.name && b.done);
+          if (e.ok && bi >= 0) boarding.current[bi] = typeof n === "number" ? n : 0;
+        }
+        else if (e.type === "stop-miss") cb.current.onStopMiss?.(e.why, e.dist);
         else if (e.type === "honk") cb.current.onHonk(e.cleared ? `📯 PÒÒN!! The ${e.cleared} moves out of your lane. Conductor hails you.` : "📯 PÒÒN!! Nobody moved. Everybody looks at you.");
         else if (e.type === "finish") cb.current.onFinish();
       }
@@ -296,6 +311,22 @@ export default function RoadRun({
       const items: { y: number; draw: () => void }[] = [];
       for (const it of roadside) {
         if (it.kind === "building" || !visible(it.x)) continue;
+        if (it.kind === "person" && it.bay !== undefined) {
+          const b = s.bays[it.bay];
+          const n = boarding.current[it.bay] ?? 0;
+          if (b?.ok && b.at !== undefined && (it.queue ?? 0) < n) {
+            const k = (s.t - b.at - (it.queue ?? 0) * 0.35) / 1.4;
+            if (k >= 1) continue; // in the bus
+            const f = Math.max(0, k);
+            const tx = s.x - 0.6 + (it.queue ?? 0) * 0.3;
+            const ty = laneY(s.lane) + 1.0;
+            const px = it.x + (tx - it.x) * f;
+            const py = it.y + (ty - it.y) * f;
+            const who = it.who;
+            items.push({ y: py, draw: () => at(px, py, () => drawPerson(ctx, CAST[who], Math.abs(tx - it.x) > Math.abs(ty - it.y) ? (tx > it.x ? "E" : "W") : "N", f > 0 ? "walk" : "stand", s.t * 8 + px)) });
+            continue;
+          }
+        }
         items.push({
           y: it.y,
           draw: () => at(it.x, it.y, () => {
@@ -425,7 +456,7 @@ export default function RoadRun({
         <canvas ref={cvRef} className="block h-full w-full" role="img" aria-label={`Micra Rush: ${corridor.name}`} />
         <canvas ref={miniRef} width={112} height={112} className="absolute right-2 top-2 h-[84px] w-[84px] rounded-xl ring-1 ring-charcoal/30 sm:h-[112px] sm:w-[112px]" aria-hidden />
         <div className="absolute left-2 top-2 rounded-xl bg-charcoal/80 px-3 py-1.5 text-[11px] font-bold text-cream">
-          {hud.next ? <>Next stop <span className="text-mapo">{hud.next}</span> · {hud.dist} m</> : "Last leg"} · {hud.kmh} km/h
+          {hud.next ? <>Next stop <span className="text-mapo">{hud.next}</span> · {hud.dist} m</> : "Last leg"} · {hud.kmh} km/h{seats !== undefined && <> · 👥 {seats}/6</>}
         </div>
       </div>
       {!autopilot && (
@@ -434,7 +465,7 @@ export default function RoadRun({
           <button onClick={() => { input.current.stop = true; }} className="rounded-xl bg-mapo py-3 text-sm font-extrabold text-charcoal">STOP at bay</button>
           <button onClick={() => { input.current.laneTarget = 0; }} className="rounded-xl bg-white/10 py-3 text-sm font-extrabold text-cream">▼ Kerb lane</button>
           <button {...hold("brake")} className="rounded-xl bg-[#6b1f1f] py-3 text-sm font-extrabold text-cream">BRAKE</button>
-          <button onClick={() => { input.current.honk = true; }} className="rounded-xl bg-[#e1b12c] py-3 text-sm font-extrabold text-charcoal">📯 PÒÒN!</button>
+          <button onClick={() => { input.current.honk = true; horn(); }} className="rounded-xl bg-[#e1b12c] py-3 text-sm font-extrabold text-charcoal">📯 PÒÒN!</button>
           <button {...hold("gas")} className="rounded-xl bg-agodi py-3 text-sm font-extrabold text-white">GAS</button>
         </div>
       )}

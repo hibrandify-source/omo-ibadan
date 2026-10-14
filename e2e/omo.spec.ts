@@ -36,6 +36,13 @@ async function openTab(page: Page, label: string) {
   await page.getByRole("button", { name: label, exact: true }).first().click();
 }
 
+/** Family time with Mama: serve the lunch crowd at her stall (2 h, +₦2,500, trust +4). */
+async function helpMama(page: Page) {
+  await page.getByRole("button", { name: /Family time with Mama/ }).first().click();
+  await page.getByRole("button", { name: "Do: Serve the lunch crowd" }).click();
+  await page.getByRole("button", { name: "Done →" }).click();
+}
+
 async function startGame(page: Page, name: string, birth: BackgroundId = "omo-iya-lobe") {
   // ?birth= forces the lottery in dev so tests are deterministic
   await page.goto(`/play?birth=${birth}`);
@@ -203,15 +210,19 @@ test.describe("Omo Ibadan E2E", () => {
     expect((await state(page)).bond).toBe(alw.bond);
     await expect(page.getByText(alw.bondLabel).first()).toBeVisible();
     await expect(page.getByRole("button", { name: "🚗 Car" })).toBeVisible();
-    await page.getByRole("button", { name: /Daddy's site meeting/ }).click();
+    await page.getByRole("button", { name: /Family time with Daddy/ }).first().click();
+    await page.getByRole("button", { name: "Do: Sit in on Daddy's site meeting" }).click();
     const s = await state(page);
     expect(s.bond).toBe(alw.bond + 4);
-    await expect(page.getByRole("button", { name: /Family duty done today/ })).toBeDisabled();
+    // once a day: the activity is done for today
+    await expect(page.getByRole("button", { name: "Do: Sit in on Daddy's site meeting" })).toBeDisabled();
+    await page.getByRole("button", { name: "Done →" }).click();
+    await expect(page.getByRole("button", { name: /Family time with Daddy ✅/ }).first()).toBeVisible();
   });
 
   test("Omo Iya Lobe: help Mama, then pay an obligation", async ({ page }) => {
     await startGame(page, "BeereChild");
-    await page.getByRole("button", { name: /Help Mama at the stall/ }).click();
+    await helpMama(page);
     let s = await state(page);
     expect(s.ola).toBe(START + 2500);
     expect(s.bond).toBe(OIL.bond + 4);
@@ -232,7 +243,7 @@ test.describe("Omo Ibadan E2E", () => {
 
   test("progress survives a reload (single save format)", async ({ page }) => {
     await startGame(page, "SaveCheck");
-    await page.getByRole("button", { name: /Help Mama at the stall/ }).click();
+    await helpMama(page);
     await openTab(page, "🚐 Hustle");
     await page.getByRole("button", { name: /Buy Oja Oba/ }).click();
     const before = await state(page);
@@ -252,11 +263,17 @@ test.describe("Omo Ibadan E2E", () => {
     expect(s.minute).toBe(6 * 60);
     await expect(page.getByLabel("Time")).toContainText("6:00 am");
     await expect(page.getByText(/Age 18/).filter({ visible: true }).first()).toBeVisible();
-    await page.getByRole("button", { name: /Help Mama at the stall/ }).click(); // 3 hours
+    await helpMama(page); // 2 hours
     s = await state(page);
-    expect(s.minute).toBe(9 * 60);
+    expect(s.minute).toBe(8 * 60);
     await openTab(page, "🏠 Ilé");
-    await page.getByRole("button", { name: /Sleep here/ }).click();
+    // in the day it's a nap; after 7 pm you sleep till morning
+    await page.getByRole("button", { name: /Take a nap/ }).click();
+    s = await state(page);
+    expect(s.day).toBe(1);
+    expect(s.minute).toBe(10 * 60);
+    await page.evaluate(() => (window as unknown as { __omo: { setClock: (m: number) => void } }).__omo.setClock(20 * 60));
+    await page.getByRole("button", { name: /Sleep till morning/ }).click();
     s = await state(page);
     expect(s.day).toBe(2);
     expect(s.minute).toBe(6 * 60);
@@ -329,8 +346,10 @@ test.describe("Omo Ibadan E2E", () => {
     const bond0 = (await state(page)).bond;
     await sceneMoveTo(page, 16.4, 19.7);
     await page.getByRole("button", { name: /Help Mama sell/ }).click();
+    await page.getByRole("button", { name: "Do: Serve the lunch crowd" }).click();
+    await page.getByRole("button", { name: "Done →" }).click();
     let s = await state(page);
-    expect(s.feed[0]).toMatch(/helped Mama sell at Oja'ba/);
+    expect(s.feed[0]).toMatch(/Serve the lunch crowd/);
     expect(s.bond).toBe(bond0 + 4);
     await sceneMoveTo(page, 35, 19.7);
     await page.getByRole("button", { name: /Buy stock from Iya Alata/ }).click();

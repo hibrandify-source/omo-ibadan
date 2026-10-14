@@ -24,7 +24,8 @@ const FAST = 20;
 const SLOW = 5;
 const RIDE_SPEED = 42; // as a passenger, time flies
 const BAY_WINDOW = 9; // metres either side of the bay box
-const DWELL = 1.2; // seconds stopped at a bay
+const DWELL = 2.4; // seconds stopped at a bay: long enough to see people climb in
+const RIDE_DWELL = 0.6; // as a passenger the stops pass quickly
 
 export type ObKind = "okada" | "keke" | "korope" | "goat" | "walker";
 export type HazardKind = ObKind | "signal" | "vio";
@@ -42,7 +43,15 @@ export interface Obstacle {
   scattered: boolean;
 }
 
-export interface Bay { x: number; name: string; done: boolean }
+export interface Bay {
+  x: number;
+  name: string;
+  done: boolean;
+  /** stopped inside the box (passengers board) */
+  ok?: boolean;
+  /** sim time of the stop, for the boarding animation */
+  at?: number;
+}
 export interface Signal { x: number; offset: number; passed: boolean }
 
 export interface DriveState {
@@ -65,6 +74,8 @@ export type DriveEvent =
   | { type: "hazard"; kind: HazardKind }
   | { type: "bay"; ok: boolean; name: string }
   | { type: "honk"; cleared: ObKind | null }
+  /** STOP pressed but not in a bay: wrong lane, or the bay is still ahead */
+  | { type: "stop-miss"; why: "lane" | "early"; dist: number }
   | { type: "finish" };
 
 export interface DriveInput {
@@ -215,12 +226,15 @@ export function stepDrive(s: DriveState, input: DriveInput, dt: number): DriveEv
   if (bay) {
     if (input.stop && Math.abs(bay.x - s.x) < BAY_WINDOW && s.lane < 0.45) {
       bay.done = true;
-      s.dwell = DWELL;
-      if (s.autopilot) s.dwell = DWELL / 2;
+      bay.ok = true;
+      bay.at = s.t;
+      s.dwell = s.autopilot ? RIDE_DWELL : DWELL;
       ev.push({ type: "bay", ok: true, name: bay.name });
     } else if (s.x > bay.x + BAY_WINDOW) {
       bay.done = true;
       ev.push({ type: "bay", ok: false, name: bay.name });
+    } else if (input.stop && !s.autopilot) {
+      ev.push({ type: "stop-miss", why: s.lane >= 0.45 ? "lane" : "early", dist: Math.round(bay.x - s.x) });
     }
   }
 

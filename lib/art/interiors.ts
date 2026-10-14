@@ -155,38 +155,81 @@ const at = (ctx: Ctx, x: number, y: number, f: () => void) => {
   ctx.restore();
 };
 
+/** Where you sleep: the mat or mattress lies east–west along the left wall. */
+const SLEEP_SPOT = { x: 0.25, y: 1.75, len: 1.85, depth: 1.2 };
+
+/** Spots you drift between when you're up and about in your room. */
+const WANDER: { x: number; y: number; face: "S" | "N" | "E" | "W" }[] = [
+  { x: 1.5, y: 2.5, face: "N" }, // by the mat
+  { x: 3.4, y: 2.3, face: "N" }, // looking out of the window
+  { x: 4.5, y: 3.3, face: "S" },
+  { x: 2.2, y: 3.5, face: "S" },
+];
+const WALK_SPEED = 0.7; // m/s
+const PAUSE = 3; // s at each spot
+
+/** Position, facing and whether you're walking, at time t (s). */
+export function wanderAt(t: number): { x: number; y: number; dir: "S" | "N" | "E" | "W"; moving: boolean } {
+  const legs = WANDER.map((a, i) => {
+    const b = WANDER[(i + 1) % WANDER.length];
+    return { a, b, walk: Math.hypot(b.x - a.x, b.y - a.y) / WALK_SPEED };
+  });
+  const cycle = legs.reduce((s, l) => s + PAUSE + l.walk, 0);
+  let k = t % cycle;
+  for (const l of legs) {
+    if (k < PAUSE) return { x: l.a.x, y: l.a.y, dir: l.a.face, moving: false };
+    k -= PAUSE;
+    if (k < l.walk) {
+      const f = k / l.walk;
+      const dx = l.b.x - l.a.x, dy = l.b.y - l.a.y;
+      const dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? "E" : "W") : dy > 0 ? "S" : "N";
+      return { x: l.a.x + dx * f, y: l.a.y + dy * f, dir, moving: true };
+    }
+    k -= l.walk;
+  }
+  return { x: WANDER[0].x, y: WANDER[0].y, dir: "S", moving: false };
+}
+
 function furnitureItems(ctx: Ctx, owned: Set<string>, t: number): Item[] {
   const items: Item[] = [];
   const add = (y: number, x: number, f: () => void) => items.push({ y, draw: () => at(ctx, x, y, f) });
-  // raffia mat or foam mattress where you sleep
-  add(0.9, 0.4, () => {
+  // raffia mat or foam mattress where you sleep, lying east–west on the floor
+  // (SLEEP_SPOT: x from 0.25, south edge at y 1.75, 1.2 m deep)
+  add(SLEEP_SPOT.y, SLEEP_SPOT.x, () => {
+    const L = SLEEP_SPOT.len, D = SLEEP_SPOT.depth * G;
     if (owned.has("mattress")) {
-      rrect(ctx, 0, -0.2 * K - 1.9 * G, 1.3, 1.9 * G + 0.2 * K, 0.06);
+      const h = 0.18 * K;
+      groundShadow(ctx, L / 2, 0, L * 0.55, 0.12, 0.2);
+      rrect(ctx, 0, -h - D, L, D + h, 0.06);
       ctx.fillStyle = "#e9e3d6";
       ctx.fill();
       clipped(ctx, () => {
         ctx.fillStyle = FABRICS.waxPurple.base;
-        ctx.fillRect(0, -0.2 * K - 1.2 * G, 1.3, 1.2 * G);
+        ctx.fillRect(0.45, -h - D, L - 0.45, D);
         for (let i = 0; i < 12; i++) {
-          oval(ctx, 0.15 + (i % 4) * 0.33, -0.2 * K - 1.1 * G + Math.floor(i / 4) * 0.25, 0.06, 0.05);
+          oval(ctx, 0.6 + (i % 6) * 0.25, -h - D + 0.12 + Math.floor(i / 6) * 0.3, 0.06, 0.05);
           ctx.fillStyle = FABRICS.waxPurple.a;
           ctx.fill();
         }
       });
-      rrect(ctx, 0.25, -0.2 * K - 1.85 * G, 0.8, 0.28, 0.08);
+      rrect(ctx, 0.06, -h - D + 0.08, 0.36, D - 0.16, 0.08); // pillow at the head (west) end
       ctx.fillStyle = "#f6f2ea";
       ctx.fill();
       ctx.fillStyle = shade("#e9e3d6", -0.15);
-      ctx.fillRect(0, -0.2 * K, 1.3, 0.2 * K);
+      ctx.fillRect(0, -h, L, h);
     } else {
-      // ẹní: woven raffia mat on the bare floor
-      rrect(ctx, 0, -1.9 * G, 1.1, 1.9 * G, 0.03);
+      // ẹní: woven raffia mat flat on the bare floor
+      rrect(ctx, 0, -D, L, D, 0.03);
       ctx.fillStyle = "#c9a96e";
       ctx.fill();
-      for (let y = 0.05; y < 1.9 * G; y += 0.07) line(ctx, 0.03, -y, 1.07, -y, "rgba(120,90,40,0.35)", 0.02);
+      for (let x = 0.06; x < L; x += 0.07) line(ctx, x, -D + 0.03, x, -0.03, "rgba(120,90,40,0.3)", 0.02);
       ctx.fillStyle = "#a8432f";
-      ctx.fillRect(0, -1.9 * G + 0.1, 1.1, 0.06);
-      ctx.fillRect(0, -0.16, 1.1, 0.06);
+      ctx.fillRect(0.1, -D, 0.06, D);
+      ctx.fillRect(L - 0.16, -D, 0.06, D);
+      // folded wrapper for a pillow
+      rrect(ctx, 0.2, -D + 0.12, 0.32, D - 0.24, 0.05);
+      ctx.fillStyle = FABRICS.waxPurple.base;
+      ctx.fill();
     }
   });
   if (owned.has("rug")) {
@@ -204,7 +247,7 @@ function furnitureItems(ctx: Ctx, owned: Set<string>, t: number): Item[] {
     });
   }
   if (owned.has("fan")) {
-    add(0.9, 2.3, () => {
+    add(0.9, 2.55, () => {
       groundShadow(ctx, 0, 0, 0.25, 0.12, 0.2);
       oval(ctx, 0, 0, 0.22, 0.1);
       ctx.fillStyle = "#e9e6de";
@@ -338,12 +381,40 @@ export function drawRoom(ctx: Ctx, s: RoomScene, t: number) {
   drawFloor(ctx, shell.floor, 11);
   drawBackWall(ctx, shell, 12);
   const items = furnitureItems(ctx, owned, t);
-  if (!s.sleeping) items.push({ y: 3.6, draw: () => at(ctx, 2.0, 3.6, () => drawPerson(ctx, s.player, "S", "stand", 0)) });
+  if (s.sleeping) {
+    // lying on the mat, head on the pillow (west), a wrapper pulled up to the chest
+    const feet = SLEEP_SPOT.x + SLEEP_SPOT.len - 0.12;
+    const mid = SLEEP_SPOT.y - SLEEP_SPOT.depth / 2;
+    const lift = owned.has("mattress") ? 0.18 * K : 0;
+    items.push({
+      y: SLEEP_SPOT.y + 0.01,
+      draw: () => at(ctx, feet, mid, () => {
+        ctx.translate(0, -lift);
+        ctx.save();
+        ctx.rotate(-Math.PI / 2);
+        ctx.scale(1, 0.92);
+        drawPerson(ctx, s.player, "S", "stand", 0);
+        ctx.restore();
+        const breathe = Math.sin(t * 1.6) * 0.012;
+        rrect(ctx, -1.02, -0.24 - breathe, 1.06, 0.46 + breathe, 0.12);
+        ctx.fillStyle = FABRICS.waxPurple.base;
+        ctx.fill();
+        for (let i = 0; i < 6; i++) {
+          oval(ctx, -0.9 + i * 0.17, -0.05, 0.05, 0.04);
+          ctx.fillStyle = FABRICS.waxPurple.a;
+          ctx.fill();
+        }
+      }),
+    });
+  } else {
+    const p = wanderAt(t);
+    items.push({ y: p.y, draw: () => at(ctx, p.x, p.y, () => drawPerson(ctx, s.player, p.dir, p.moving ? "walk" : "stand", t * 7)) });
+  }
   items.sort((a, b) => a.y - b.y).forEach((i) => i.draw());
   if (s.sleeping) {
     for (let i = 0; i < 3; i++) {
       const k = (t * 0.6 + i / 3) % 1;
-      label(ctx, "z", 1.1 + k * 0.6, 0.5 * G - 0.5 - k * 1.2, 0.25 + k * 0.2, `rgba(255,255,255,${1 - k})`, 900);
+      label(ctx, "z", SLEEP_SPOT.x + 0.35 + k * 0.6, (SLEEP_SPOT.y - SLEEP_SPOT.depth / 2) * G - 0.4 - k * 1.2, 0.25 + k * 0.2, `rgba(255,255,255,${1 - k})`, 900);
     }
   }
   drawSideWalls(ctx);

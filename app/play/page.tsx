@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   ECONOMY,
   HOODS,
+  FAMILY_ACTIVITIES,
   LEGACY_MAX_AGE,
   LECTURES_PER_YEAR,
   SCHOOLS,
@@ -76,9 +77,11 @@ import {
   wed,
   type Legacy,
 } from "@/lib/engine/life";
+import { phoneInbox } from "@/lib/engine/phone";
 import LifePanel from "@/components/LifePanel";
 import PeoplePanel from "@/components/PeoplePanel";
 import LegacyModal from "@/components/LegacyModal";
+import FamilyPanel from "@/components/FamilyPanel";
 import {
   MINUTES,
   WAKE_MINUTE,
@@ -460,9 +463,9 @@ export default function Home() {
     const params = new URLSearchParams(window.location.search);
     const r = params.get("ref");
     if (r) setRefInput(r);
-    // Dev/test only: ?birth=alowonle forces the lottery result.
+    // Dev, and test deploys with NEXT_PUBLIC_TESTERS=on: ?birth=alowonle forces the lottery result.
     const forced = params.get("birth");
-    if (process.env.NODE_ENV !== "production" && isBackgroundId(forced)) setForcedBirth(forced);
+    if ((process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_TESTERS === "on") && isBackgroundId(forced)) setForcedBirth(forced);
     setHydrated(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -486,6 +489,7 @@ export default function Home() {
   useEffect(() => {
     if (process.env.NODE_ENV === "production") return;
     (window as unknown as { __omo: unknown }).__omo = {
+      setClock: (m: number) => { minuteRef.current = m; setMinute(m); },
       goto: (zoneId: string) => { setNode(zoneId); setAvatarZone(zoneId); recordVisit(zoneId); },
       state: () => ({ started, tab, bg: bgId, bond, ola, iwa, energy, day, minute, avatarZone, doorOpen: doorOpen?.id ?? null, feed: feed.slice(0, 3), journal: journal.length, npc: Object.fromEntries(Object.entries(npc).map(([k, v]) => [k, v.meets])) }),
     };
@@ -718,38 +722,36 @@ export default function Home() {
     push(`🙏 Paid ${o.title}: −${naira(o.amount)}. ${bg.bondLabel} +${late ? 5 : 12}.`);
   };
 
-  // once a day: Omo Iya Lobe helps at Mama's stall; Alowonle shows face at Daddy's office
-  // `atHome`: done in the evening at the compound (pot / veranda) instead of at the stall or site
-  const familyDuty = (atHome = false) => {
-    if (lastFamilyDay === day) {
-      push("You've already done your family duty today.");
-      return;
-    }
-    if (energy < 20) {
-      push("Too tired. Chop or rest first.");
-      return;
-    }
+  // family time: real activities with Mama or Daddy (lib/game/family). Each once a day;
+  // the first one each day is your family duty.
+  const [familyOpen, setFamilyOpen] = useState(false);
+  const familyDone = FAMILY_ACTIVITIES[bg.id].list.filter((a) => life.seen[`duty:${a.id}`] === day).map((a) => a.id);
+  const doFamily = (id: string) => {
+    const fam = FAMILY_ACTIVITIES[bg.id];
+    const a = fam.list.find((x) => x.id === id);
+    if (!a) return;
+    if (!a.parts.includes(partOfDay(minuteRef.current))) { push(`${a.label}: not at this time of day.`); return; }
+    if (life.seen[`duty:${id}`] === day) { push("You've done that already today."); return; }
+    if (energy + a.energy < 5) { push("Too tired. Chop or rest first."); return; }
+    setLife((l) => ({ ...l, seen: { ...l.seen, [`duty:${id}`]: day } }));
     setLastFamilyDay(day);
-    setEnergy((e) => Math.max(5, e - 15));
-    setBond((b) => Math.min(100, b + 4));
-    spendMinutes(MINUTES.familyDuty);
-    if (bg.id === "omo-iya-lobe") {
-      const tip = 2500;
-      setOla((o) => o + tip);
-      setIwa((v) => Math.min(100, v + 2));
-      meet("Mama Bisi");
-      addSkill("cooking", 10);
-      push(atHome
-        ? `🍲 You stirred the gbegiri with Mama for tomorrow's market. She pressed ${naira(tip)} into your hand. Mama's trust +4.`
-        : `🍲 You helped Mama sell at Oja'ba. She pressed ${naira(tip)} into your hand. Mama's trust +4.`);
-    } else {
-      setNeeds((n) => ({ ...n, fun: Math.max(0, n.fun - 10) }));
-      meet("Chief Adeyemi");
-      addSkill("charisma", 10);
-      push(atHome
-        ? "👔 You went through the day's site accounts with Daddy on the veranda. Approval +4, fun −10."
-        : "👔 You sat through Daddy's site meeting on Ring Road and took notes. Approval +4, fun −10.");
+    setEnergy((e) => Math.max(5, Math.min(100, e + a.energy)));
+    setBond((b) => Math.min(100, b + a.bond));
+    if (a.tip) setOla((o) => o + a.tip);
+    if (a.iwa) setIwa((v) => Math.min(100, v + a.iwa));
+    if (a.skill) addSkill(a.skill.id, a.skill.xp);
+    if (a.needs) {
+      const nd = a.needs;
+      setNeeds((n) => {
+        const next = { ...n };
+        for (const [k, v] of Object.entries(nd)) next[k as keyof typeof n] = Math.max(0, Math.min(100, next[k as keyof typeof n] + (v ?? 0)));
+        return next;
+      });
     }
+    meet(fam.who);
+    const icon = bg.id === "omo-iya-lobe" ? "🍲" : "👔";
+    push(`${icon} ${a.label}.${a.tip ? ` ${bg.id === "omo-iya-lobe" ? "Mama" : "Mummy"} pressed ${naira(a.tip)} into your hand.` : ""} ${bg.bondLabel} +${a.bond}.`);
+    spendMinutes(a.minutes);
   };
 
   const missionMet = (id: string): boolean => {
@@ -854,7 +856,17 @@ export default function Home() {
   };
 
   // sleep through to 6 am; the bed's comfort decides how much energy comes back
+  // asleep: the room shows you lying down, and the morning's news waits till you wake
+  const [asleep, setAsleep] = useState(false);
+  const bedtime = minute >= 19 * 60 || minute < WAKE_MINUTE;
   const sleep = (bonus: number) => {
+    setAsleep(true);
+    window.setTimeout(() => setAsleep(false), 3200);
+    if (!(minuteRef.current >= 19 * 60 || minuteRef.current < WAKE_MINUTE)) {
+      const gain = Math.round(bonus / 3);
+      restHome(gain, `😴 A two-hour nap on your mat. Energy +${gain}. Proper sleep comes after 7 pm.`, 2 * 60);
+      return;
+    }
     const mins = minutesUntilMorning(minuteRef.current);
     const hours = Math.round(mins / 60);
     const gain = hours >= 6 ? bonus : Math.round((bonus * hours) / 6);
@@ -1093,7 +1105,7 @@ export default function Home() {
         push("🍲 Mama has packed up for the day. She's cooking at home in Beere this evening.");
         return;
       }
-      familyDuty();
+      setFamilyOpen(true);
       return;
     }
     if (id === "mama-room" || id === "house") {
@@ -1106,7 +1118,7 @@ export default function Home() {
         push("👔 The veranda is empty. Daddy is at a site on Ring Road until evening.");
         return;
       }
-      familyDuty(true);
+      setFamilyOpen(true);
       return;
     }
     if (id === "car") {
@@ -1121,7 +1133,7 @@ export default function Home() {
         push("🍲 The pot is cold. Mama is at her Oja'ba stall until evening; Oja'ba is a short walk away.");
         return;
       }
-      familyDuty(true);
+      setFamilyOpen(true);
       return;
     }
     if (id === "shop") {
@@ -1815,10 +1827,23 @@ export default function Home() {
 
         {/* Town feed lives in the sidebar below */}
 
+        {familyOpen && (
+          <FamilyPanel
+            bgId={bg.id}
+            part={partOfDay(minute)}
+            bond={bond}
+            bondLabel={bg.bondLabel}
+            energy={energy}
+            doneToday={familyDone}
+            onDo={doFamily}
+            onClose={() => setFamilyOpen(false)}
+          />
+        )}
+
         {legacy && <LegacyModal legacy={legacy} name={username} onClose={() => setLegacy(null)} onNewLife={startNewLife} />}
 
         {/* Life-event modal (NEPA / rain / family / rent) */}
-        {event && (
+        {event && !asleep && (
           <div className="fixed inset-0 z-30 flex items-center justify-center bg-charcoal/70 p-4 backdrop-blur-sm">
             <div className="w-full max-w-sm rounded-3xl bg-cream p-5 shadow-2xl ring-1 ring-roof/20">
               <h3 className="font-display text-lg font-extrabold tracking-tight">{event.title}</h3>
@@ -2228,6 +2253,7 @@ export default function Home() {
                   home={home}
                   player={playerSpec({ gender, skin: look.skin, top: topColor, gear })}
                   night={partOfDay(minute) === "night"}
+                  bedtime={bedtime}
                   onSleep={() => {
                     const bonus = 40 + home.furniture.reduce((s, id) => s + (FURNITURE.find((f) => f.id === id)?.rest ?? 0), 0);
                     sleep(bonus);
@@ -2412,7 +2438,13 @@ export default function Home() {
             </div>
             </div>
           )}
-          {tab === "fonu" && <FonuPhone />}
+          {tab === "fonu" && (
+            <FonuPhone
+              clock={formatTime(minute)}
+              dateLabel={calendarFor(day).label}
+              msgs={phoneInbox({ day, minute, bg, paidObligations, life, event, weather, feed })}
+            />
+          )}
           {tab === "ojude" && (
             <div className="space-y-3">
               <OjudeFeed />
@@ -2528,15 +2560,11 @@ export default function Home() {
                 </p>
               )}
               <button
-                onClick={() => familyDuty()}
-                disabled={lastFamilyDay === day}
-                className="mt-2 w-full rounded-full bg-charcoal py-2 text-xs font-bold text-cream disabled:opacity-40"
+                onClick={() => setFamilyOpen(true)}
+                className="mt-2 w-full rounded-full bg-charcoal py-2 text-xs font-bold text-cream"
               >
-                {lastFamilyDay === day
-                  ? "Family duty done today ✅"
-                  : bg.id === "alowonle"
-                    ? "Sit in on Daddy's site meeting (−15⚡)"
-                    : "Help Mama at the stall (−15⚡)"}
+                {bg.id === "alowonle" ? "👔 Family time with Daddy" : "🍲 Family time with Mama"}
+                {lastFamilyDay === day ? " ✅" : ""}
               </button>
               {bg.obligations.length > 0 && (
                 <div className="mt-3 space-y-1.5">
@@ -2595,7 +2623,6 @@ export default function Home() {
         </div>
 
         <AdSlot slot="game-footer" />
-        <p className="mt-4 pb-6 text-center text-xs text-charcoal/45">Omo Ibadan V1 · Next 14 web · virtual ₦ only, no cashout · Iwa no dey buyable · Ẹ káàbọ̀ sí Ìbàdàn</p>
       </div>
     </main>
   );
