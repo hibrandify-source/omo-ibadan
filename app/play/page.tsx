@@ -2158,7 +2158,7 @@ export default function Home() {
             />
           )}
           {tab === "owambe" && (
-            <OwambeHall ola={ola} energy={energy} onSpray={sprayOwambe} onDance={danceOwambe} />
+            <OwambeHall ola={ola} energy={energy} player={playerSpec({ gender, skin: look.skin, top: topColor, gear })} onSpray={sprayOwambe} onDance={danceOwambe} />
           )}
           {tab === "rin" && (
             <div className="space-y-3">
