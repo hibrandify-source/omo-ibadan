@@ -15,9 +15,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.evaluate(() => document.fonts.ready);
   await sleep(800);
   const shots = [
-    ["slide-1", "01-cover.jpg"], ["slide-2", "02-two-lives.jpg"], ["slide-3", "03-real-streets.jpg"],
-    ["slide-4", "04-micra-rush.jpg"], ["slide-5", "05-owambe.jpg"], ["slide-6", "06-your-story.jpg"],
-    ["slide-7", "07-play-free.jpg"],
+    ["slide-1", "01-cover.jpg"], ["slide-2", "02-two-lives.jpg"], ["slide-3", "03-walk-the-city.jpg"],
+    ["slide-4", "04-hustle-micra.jpg"], ["slide-5", "05-owambe.jpg"], ["slide-6", "06-play-free.jpg"],
     ["profile", "profile-picture.png"], ["banner", "cover-banner-1500x500.jpg"],
     ["logo-light", "logo-horizontal-light.png"], ["logo-dark", "logo-horizontal-dark.png"],
   ];

@@ -29,6 +29,7 @@
   .chip { display: inline-block; padding: 14px 26px; border-radius: 999px; font-weight: 700; font-size: 28px; }
   .swipe { position: absolute; right: 80px; bottom: 70px; font-family: "Sora"; font-weight: 700; font-size: 30px; color: var(--gold); }
   .body { font-size: 36px; line-height: 1.38; font-weight: 500; }
+  .stage { position: absolute; left: 80px; right: 80px; top: 280px; bottom: 40px; display: flex; align-items: center; }
   ul.ticks { list-style: none; display: grid; gap: 18px; }
   ul.ticks li { font-size: 34px; font-weight: 600; padding-left: 58px; position: relative; }
   ul.ticks li::before { content: ""; position: absolute; left: 0; top: 8px; width: 34px; height: 34px; border-radius: 10px; background: var(--gold); }
@@ -38,109 +39,76 @@
 
 <!-- 1 · cover -->
 <div class="frame post dark" id="slide-1">
-  <img src="../art/hero-tall.png" style="position:absolute; inset:0 0 auto 0; width:100%; height:860px; object-fit:cover; object-position:50% 50%;">
-  <div style="position:absolute; left:0; right:0; top:560px; height:320px; background:linear-gradient(to bottom, rgba(28,25,23,0), var(--char));"></div>
+  <img src="../art/hero-tall.png" style="position:absolute; inset:0 0 auto 0; width:100%; height:900px; object-fit:cover; object-position:50% 50%;">
+  <div style="position:absolute; left:0; right:0; top:600px; height:320px; background:linear-gradient(to bottom, rgba(28,25,23,0), var(--char));"></div>
   <div class="pad brand" style="top:64px;"><img src="../brand/logo-mark.svg"><span>Omo Ibadan</span></div>
-  <div class="pad" style="top:860px;">
-    <div class="kicker">A life in real Ibadan</div>
-    <div class="display" style="font-size:118px; margin-top:24px;">Live your <span class="gold">Ibadan</span> life.</div>
-    <div class="body" style="margin-top:28px; opacity:0.78; max-width:820px;">From 18 to 38: hustle, school, love, owambe and the name you leave behind. Free in your browser.</div>
+  <div class="pad" style="top:930px;">
+    <div class="display" style="font-size:124px;">Live your <span class="gold">Ibadan</span> life.</div>
+    <div class="body" style="margin-top:26px; opacity:0.75;">A life game set in Ibadan.</div>
   </div>
   <div class="swipe">Swipe →</div>
 </div>
 
 <!-- 2 · two lives -->
 <div class="frame post light" id="slide-2">
-  <div class="count">2/7</div>
-  <div class="pad" style="top:110px;">
-    <div class="kicker" style="color:var(--roof)">The lottery decides</div>
-    <div class="display" style="font-size:96px; margin-top:22px;">Born in Beere,<br>or born in Bodija?</div>
+  <div class="count">2/6</div>
+  <div class="pad" style="top:120px;">
+    <div class="display" style="font-size:104px;">Born in Beere,<br>or born in Bodija?</div>
   </div>
-  <div class="pad" style="top:480px; display:grid; grid-template-columns:1fr 1fr; gap:36px;">
+  <div class="pad" style="top:560px; display:grid; grid-template-columns:1fr 1fr; gap:36px;">
     <div style="background:#fff; border-radius:40px; overflow:hidden; box-shadow:0 30px 60px -30px rgba(122,74,43,0.45);">
-      <img src="../art/lobe.png" style="display:block; width:100%; height:300px; object-fit:cover;">
-      <div style="padding:34px 36px 40px;">
-        <div class="display" style="font-size:52px;">Omo Iya Lobe</div>
-        <div style="font-size:26px; font-weight:700; color:var(--roof); margin-top:10px;">Child of the soup seller</div>
-        <div class="body" style="font-size:30px; margin-top:18px;">₦15,000, Mama's pot, and a whole street that knows your name.</div>
+      <img src="../art/lobe.png" style="display:block; width:100%; height:330px; object-fit:cover;">
+      <div style="padding:36px 36px 44px;">
+        <div class="display" style="font-size:54px;">Omo Iya Lobe</div>
+        <div style="font-size:30px; font-weight:700; color:var(--roof); margin-top:12px;">Child of the soup seller</div>
       </div>
     </div>
     <div style="background:#fff; border-radius:40px; overflow:hidden; box-shadow:0 30px 60px -30px rgba(122,74,43,0.45);">
-      <img src="../art/alowonle.png" style="display:block; width:100%; height:300px; object-fit:cover;">
-      <div style="padding:34px 36px 40px;">
-        <div class="display" style="font-size:52px;">Alowonle</div>
-        <div style="font-size:26px; font-weight:700; color:var(--roof); margin-top:10px;">Born into money</div>
-        <div class="body" style="font-size:30px; margin-top:18px;">₦150,000, a car, and Daddy's allowance. With conditions.</div>
+      <img src="../art/alowonle.png" style="display:block; width:100%; height:330px; object-fit:cover;">
+      <div style="padding:36px 36px 44px;">
+        <div class="display" style="font-size:54px;">Alowonle</div>
+        <div style="font-size:30px; font-weight:700; color:var(--roof); margin-top:12px;">Born into money</div>
       </div>
     </div>
   </div>
-  <div class="pad" style="bottom:90px;"><span class="chip" style="background:var(--char); color:var(--cream);">8 in 10 lives start in Beere 🎲</span></div>
 </div>
 
-<!-- 3 · real streets -->
+<!-- 3 · the city -->
 <div class="frame post dark" id="slide-3">
-  <div class="count">3/7</div>
-  <div class="pad" style="top:110px;">
-    <div class="kicker">27 districts</div>
-    <div class="display" style="font-size:96px; margin-top:22px;">Every street is<br><span class="gold">real Ibadan.</span></div>
+  <div class="count">3/6</div>
+  <div class="pad" style="top:120px;">
+    <div class="display" style="font-size:112px;">Walk <span class="gold">the city.</span></div>
   </div>
-  <div class="pad" style="top:470px;"><img class="shot" src="../art/ojaoba.png" style="height:560px; object-position:50% 30%;"></div>
-  <div class="pad body" style="top:1090px; opacity:0.8;">Walk Oja'ba, Mapo, Dugbe, Bodija, the UI gate and Iwo Road. Built from OpenStreetMap: real roads, real distances.</div>
+  <div class="stage"><img class="shot" src="../art/ojaoba.png" style="height:auto;"></div>
 </div>
 
-<!-- 4 · micra rush -->
+<!-- 4 · micra -->
 <div class="frame post dark" id="slide-4">
-  <div class="count">4/7</div>
-  <div class="pad" style="top:110px;">
-    <div class="kicker">Micra Rush</div>
-    <div class="display" style="font-size:96px; margin-top:22px;">Hustle micra on<br><span class="gold">real roads.</span></div>
+  <div class="count">4/6</div>
+  <div class="pad" style="top:120px;">
+    <div class="display" style="font-size:112px;">Hustle <span class="gold">micra.</span></div>
   </div>
-  <div class="pad" style="top:470px;"><img class="shot" src="../art/micra.png" style="height:520px; object-position:50% 50%;"></div>
-  <div class="pad" style="top:1060px;">
-    <ul class="ticks">
-      <li>Kerb lane. Stop inside the bay. Load up.</li>
-      <li>Okada for front? PÒÒN!</li>
-      <li>Overload and VIO go catch you.</li>
-    </ul>
-  </div>
+  <div class="stage"><img class="shot" src="../art/micra.png" style="height:auto;"></div>
 </div>
 
 <!-- 5 · owambe -->
 <div class="frame post" id="slide-5" style="background:#2a1424; color:var(--cream);">
-  <div class="count">5/7</div>
-  <div class="pad" style="top:110px;">
-    <div class="kicker">Fuji night</div>
-    <div class="display" style="font-size:104px; margin-top:22px;">Owambe<br><span class="gold">dey sweet.</span></div>
+  <div class="count">5/6</div>
+  <div class="pad" style="top:120px;">
+    <div class="display" style="font-size:112px;">Spray at <span class="gold">owambe.</span></div>
   </div>
-  <div class="pad" style="top:480px;"><img class="shot" src="../art/owambe.png" style="height:560px; object-position:50% 40%;"></div>
-  <div class="pad body" style="top:1100px; opacity:0.85;">Aso-ebi, the Fuji band, the celebrant on the floor. Spray your money. The money boy go pack am.</div>
+  <div class="stage"><img class="shot" src="../art/owambe.png" style="height:auto;"></div>
 </div>
 
-<!-- 6 · the story -->
-<div class="frame post light" id="slide-6">
-  <div class="count">6/7</div>
-  <div class="pad" style="top:110px;">
-    <div class="kicker" style="color:var(--roof)">Twenty years</div>
-    <div class="display" style="font-size:104px; margin-top:22px;">Your story,<br>18 → 38.</div>
-  </div>
-  <div class="pad" style="top:500px; display:grid; gap:40px;">
-    <div style="display:grid; grid-template-columns:170px 1fr; gap:26px; align-items:baseline;"><div class="display gold" style="font-size:68px;">18</div><div class="body" style="font-size:40px;"><b>JAMB</b> in January. Read those past questions.</div></div>
-    <div style="display:grid; grid-template-columns:170px 1fr; gap:26px; align-items:baseline;"><div class="display gold" style="font-size:68px;">19</div><div class="body" style="font-size:40px;"><b>UI, the Poly,</b> or the market. Your choice.</div></div>
-    <div style="display:grid; grid-template-columns:170px 1fr; gap:26px; align-items:baseline;"><div class="display gold" style="font-size:68px;">23</div><div class="body" style="font-size:40px;"><b>NYSC.</b> Your call-up letter could say Borno.</div></div>
-    <div style="display:grid; grid-template-columns:170px 1fr; gap:26px; align-items:baseline;"><div class="display gold" style="font-size:68px;">24+</div><div class="body" style="font-size:40px;"><b>Work, love, family.</b> Introduction, wedding, naming.</div></div>
-    <div style="display:grid; grid-template-columns:170px 1fr; gap:26px; align-items:baseline;"><div class="display gold" style="font-size:68px;">38</div><div class="body" style="font-size:40px;"><b>Your legacy.</b> The city sings your oriki.</div></div>
-  </div>
-</div>
-
-<!-- 7 · call to action -->
-<div class="frame post dark" id="slide-7">
+<!-- 6 · play -->
+<div class="frame post dark" id="slide-6">
   <img src="../art/hero-tall.png" style="position:absolute; inset:auto 0 0 0; width:100%; height:560px; object-fit:cover; object-position:50% 70%; opacity:0.55;">
   <div style="position:absolute; left:0; right:0; bottom:300px; height:260px; background:linear-gradient(to bottom, var(--char), rgba(28,25,23,0));"></div>
-  <div class="pad" style="top:150px; text-align:center;">
-    <img src="../brand/logo-mark.svg" style="width:210px; height:210px; border-radius:52px; box-shadow:0 30px 60px -20px rgba(0,0,0,0.7);">
-    <div class="display" style="font-size:110px; margin-top:44px;">Omo Ibadan</div>
-    <div class="body" style="margin-top:22px; opacity:0.8;">Free in your browser. No download.<br>Made for your phone.</div>
-    <div style="margin-top:56px;"><span class="chip" style="background:linear-gradient(90deg,var(--gold),var(--gold2)); color:var(--char); font-size:38px; padding:22px 48px;">Play free · link in bio</span></div>
+  <div class="pad" style="top:170px; text-align:center;">
+    <img src="../brand/logo-mark.svg" style="width:220px; height:220px; border-radius:54px; box-shadow:0 30px 60px -20px rgba(0,0,0,0.7);">
+    <div class="display" style="font-size:116px; margin-top:44px;">Omo Ibadan</div>
+    <div class="body" style="margin-top:20px; opacity:0.8;">Free to play.</div>
+    <div style="margin-top:56px;"><span class="chip" style="background:linear-gradient(90deg,var(--gold),var(--gold2)); color:var(--char); font-size:40px; padding:22px 52px;">Link in bio</span></div>
   </div>
 </div>
 

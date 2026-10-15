@@ -6,7 +6,7 @@ Everything here is drawn from the game itself (same art kit), so posts match wha
 
 | File | Use |
 |---|---|
-| `01-cover.jpg` … `07-play-free.jpg` | First post: a 7-slide carousel, 1080×1350 (Instagram/Facebook portrait). `01-cover.jpg` also works alone as a single post. |
+| `01-cover.jpg` … `06-play-free.jpg` | First post: a 6-slide carousel, 1080×1350 (Instagram/Facebook portrait). One line per slide: Live your Ibadan life · Born in Beere or Bodija? · Walk the city · Hustle micra · Spray at owambe · Free to play. `01-cover.jpg` also works alone. |
 | `profile-picture.png` | Profile photo, 1080×1080. The sun-ring "O" stays inside the circle crop. |
 | `cover-banner-1500x500.jpg` | X header and Facebook cover. |
 | `logo-horizontal-light.png` / `-dark.png` | Logo with wordmark, for anywhere else. |
@@ -21,7 +21,7 @@ To change text or re-capture art: run the dev server on :3001, then `node market
 **Name:** Omo Ibadan
 
 **Bio (Instagram, under 150 characters):**
-> Live your Ibadan life 🏠☀️ A free life-sim set in real Ibadan, 18 → 38. Born in Beere or Bodija? Play free, no download 👇
+> Live your Ibadan life 🏠☀️ A free life game set in Ibadan. Play below 👇
 
 **Link:** the game. Use the home page, not /play, so new people see what it is first.
 
@@ -29,23 +29,18 @@ To change text or re-capture art: run the dev server on :3001, then `node market
 
 ## First post (the carousel)
 
+Keep it short: say what the game is, not how it works.
+
 > Ẹ káàbọ̀ sí Ìbàdàn 🏠☀️
 >
-> Omo Ibadan is a life-sim set in the real Ibadan: 27 districts, real roads, real fares.
+> Omo Ibadan is a life game set in Ibadan. Born in Beere or born in Bodija, the rest is up to you.
 >
-> You start at 18. The lottery decides if you're born in Beere with Mama's soup pot, or behind a gate in Old Bodija.
+> Free to play. Link in bio 👆
 >
-> Then it's your life: hustle micra from Mokola to Iwo Road, write JAMB, choose UI or the Poly, serve NYSC, spray money at owambe, fall in love, and leave a name the city remembers.
->
-> Free in your browser. No download. Made for your phone.
-> 👉 Play: link in bio
->
-> Which life would you draw: Omo Iya Lobe or Alowonle? 👇
->
-> #OmoIbadan #Ibadan #Oyo #NaijaGames #NigerianGames #LifeSim #IndieGame #Owambe #Yoruba #MadeInNigeria
+> #OmoIbadan #Ibadan #NaijaGames #LifeGame #Owambe #Yoruba
 
 **Single-image version** (`01-cover.jpg`, for X or a WhatsApp status):
-> Live your Ibadan life. 🏠☀️ From JAMB to owambe to your legacy, in the real Ibadan. Free in your browser: [link]
+> Live your Ibadan life. 🏠☀️ A free life game set in Ibadan: [link]
 
 ## The first two weeks
 
