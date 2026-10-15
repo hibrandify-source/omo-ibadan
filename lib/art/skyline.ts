@@ -90,7 +90,7 @@ export function drawHeroBackdrop(ctx: Ctx, viewW: number) {
   ctx.closePath();
   ctx.fill();
   ctx.save();
-  ctx.translate(cx - 4.2, HORIZON - 1.5 - 12 * G * 0.24);
+  ctx.translate(cx - 4.2, HORIZON - 1.15 - 12 * G * 0.24); // sits into the crest, not on top of it
   ctx.scale(0.24, 0.24);
   drawCivicHall(ctx, { w: 22, d: 12, h: 6, name: "MAPO HALL", seed: 31 });
   ctx.restore();

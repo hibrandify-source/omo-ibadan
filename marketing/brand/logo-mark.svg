@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Omo Ibadan">
+  <!-- Omo Ibadan mark: the sun coming up behind a rusty zinc roof. The sun is the O. -->
+  <defs>
+    <linearGradient id="sky" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="0" y2="512">
+      <stop offset="0" stop-color="#3a1f2c"/>
+      <stop offset="0.62" stop-color="#9a3f26"/>
+      <stop offset="1" stop-color="#d9772c"/>
+    </linearGradient>
+    <linearGradient id="sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFE29A"/>
+      <stop offset="1" stop-color="#E8A020"/>
+    </linearGradient>
+    <linearGradient id="zinc" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a7612f"/>
+      <stop offset="1" stop-color="#6a331f"/>
+    </linearGradient>
+    <clipPath id="tile"><rect width="512" height="512" rx="112"/></clipPath>
+    <clipPath id="roof"><polygon points="28,352 256,236 484,352"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect width="512" height="512" fill="url(#sky)"/>
+    <!-- the sun: a ring, so it reads as an O -->
+    <circle cx="256" cy="236" r="132" fill="url(#sun)"/>
+    <circle cx="256" cy="236" r="70" fill="url(#sky)"/>
+    <!-- low-pitched zinc roof, corrugated -->
+    <polygon points="28,352 256,236 484,352" fill="url(#zinc)"/>
+    <g clip-path="url(#roof)" fill="#5a2a18" opacity="0.55">
+      <rect x="40" y="230" width="10" height="130"/><rect x="72" y="230" width="10" height="130"/>
+      <rect x="104" y="230" width="10" height="130"/><rect x="136" y="230" width="10" height="130"/>
+      <rect x="168" y="230" width="10" height="130"/><rect x="200" y="230" width="10" height="130"/>
+      <rect x="232" y="230" width="10" height="130"/><rect x="264" y="230" width="10" height="130"/>
+      <rect x="296" y="230" width="10" height="130"/><rect x="328" y="230" width="10" height="130"/>
+      <rect x="360" y="230" width="10" height="130"/><rect x="392" y="230" width="10" height="130"/>
+      <rect x="424" y="230" width="10" height="130"/><rect x="456" y="230" width="10" height="130"/>
+    </g>
+    <!-- a rust patch and the ridge cap -->
+    <polygon points="300,272 380,312 340,330 284,300" fill="#c46b2c" opacity="0.45"/>
+    <polyline points="28,352 256,236 484,352" fill="none" stroke="#3b1c10" stroke-width="6" stroke-linejoin="round"/>
+    <!-- fascia and the house below -->
+    <rect x="24" y="350" width="464" height="12" fill="#3b1c10"/>
+    <rect x="72" y="362" width="368" height="146" fill="#efe2c8"/>
+    <rect x="224" y="398" width="64" height="114" fill="#4a2d1a"/>
+    <rect x="112" y="400" width="66" height="54" fill="#2f3a3f"/>
+    <rect x="334" y="400" width="66" height="54" fill="#2f3a3f"/>
+    <rect x="112" y="425" width="66" height="4" fill="#efe2c8"/>
+    <rect x="334" y="425" width="66" height="4" fill="#efe2c8"/>
+  </g>
+</svg>
